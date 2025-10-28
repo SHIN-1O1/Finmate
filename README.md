@@ -9,7 +9,8 @@
 ## ✨ Key Features
 
 ### *🔐 Authentication & Onboarding*
-- Sign up and login securely using Firebase.
+- Sign up and login securely using Firebase Authentication.
+- Cloud data persistence with Firestore for reliable data storage.
 - Guided onboarding: Set your user role (Student/Professional/Housewife), income, and fixed monthly expenses.
 
 ### *📊 Dashboard*
@@ -17,20 +18,27 @@
 - Visual analytics for recent spending and active goals.
 - Smart alerts if you exceed your daily spending limit or near important milestones.
 - Export comprehensive financial reports in multiple formats:
-  - Detailed PDF reports with financial insights and recommendations
+  - Beautiful PDF reports with financial insights, trends, and recommendations
+  - Structured tables showing transactions, goals, and emergency fund details
+  - Visual charts and graphs embedded in PDF exports
   - CSV export for spreadsheet analysis
   - JSON data for external integrations
 
 ### *📝 Daily Expense Logging (Check-In)*
-- Quickly log today’s expenses, specifying category, amount, and description.
+- Quickly log today's expenses, specifying category, amount, and description.
 - Real-time progress against your set daily limit.
 - Interactive pie charts visualize spending by category each day.
+- Automatic categorization and field parsing using AI.
+- Voice input support for hands-free expense logging.
+- OCR support for scanning receipts and bills.
 
 ### *📒 Expenses & Analysis*
 - Powerful filters by week, month, or full history.
 - See vertical bar charts breaking down spending per category.
 - Review and sort transactions in detail.
 - AI Recommendations: Personalized insights for budgeting and saving better.
+- End-of-day summaries with spending analysis.
+- Real-time spending forecasts and trend analysis.
 
 ### *📅 Fixed Expenses & EMIs*
 - Add, edit, and check off fixed monthly expenses (like rent, subscriptions, EMIs).
@@ -52,17 +60,6 @@
 - Fast navigation via the sidebar and top bar.
 - Customized for dark mode & theming (purple and neutral design).
 - Mobile responsive: Works across devices.
-- Professional PDF report generation with detailed insights.
-
-### *📑 Advanced Reporting*
-- Generate comprehensive PDF financial reports
-  - Complete financial summary with income, expenses, and savings
-  - Detailed fixed expenses breakdown with timeline tracking
-  - Goals progress and emergency fund status
-  - Transaction history and spending patterns
-  - AI-powered actionable financial insights
-- Export data in multiple formats (CSV, JSON)
-- Custom formatting for Indian Rupee (₹) currency
 
 ### *🧠 AI & Automation*
 - AI-driven recommendations for improving savings and identifying spending leaks.
@@ -84,13 +81,16 @@
 | Tailwind CSS         | Fast, utility-based responsive styling      |
 | shadcn/ui            | Headless UI primitives and custom components|
 | Firebase Auth        | User authentication & session management    |
+| Firestore           | Cloud data persistence & real-time sync     |
 | Recharts             | Data visualization (charts, graphs)         |
 | date-fns             | Date parsing and formatting                 |
 | react-hook-form      | Declarative, scalable form management       |
 | zod                  | Type-safe form validation                   |
 | lucide-react         | Modern, easily customizable icons           |
-| jsPDF                | PDF report generation                       |
+| jsPDF                | Advanced PDF report generation              |
 | jspdf-autotable      | Structured PDF tables and layouts           |
+| Tesseract.js         | OCR processing for receipt scanning         |
+| Web Speech API       | Voice input for expense logging            |
 | Custom hooks/utilities| Centralized business logic, classnames     |
 
 ***
