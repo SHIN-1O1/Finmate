@@ -88,15 +88,23 @@ export default function OnboardingPage() {
 
 
   function onSubmit(data: OnboardingValues) {
+    const fixedExpensesWithIds = (data.fixedExpenses || []).map(exp => ({
+      id: (exp as any).id ?? `fe-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      ...(exp as any),
+    }));
+
     const profileData = {
         ...data,
+        fixedExpenses: fixedExpensesWithIds,
         emergencyFund: {
-            target: 0, 
+            target: 0,
             current: 0,
             history: [],
         }
-    };
-    updateProfile(profileData);
+    } as const;
+
+    // Ensure the shape matches the expected Partial<UserProfile>
+    updateProfile(profileData as any);
     router.push('/dashboard');
   }
 

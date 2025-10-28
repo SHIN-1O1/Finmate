@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import firebaseApp from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,6 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupValues) => {
     setIsLoading(true);
-    const auth = getAuth(firebaseApp);
     try {
       await createUserWithEmailAndPassword(auth, data.email, data.password);
       router.push('/onboarding');

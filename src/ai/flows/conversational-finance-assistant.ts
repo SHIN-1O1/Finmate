@@ -50,7 +50,7 @@ const prompt = ai.definePrompt({
   name: 'conversationalFinanceAssistantPrompt',
   input: {schema: ConversationalFinanceAssistantInputSchema},
   output: {schema: ConversationalFinanceAssistantOutputSchema},
-  model: 'gemini-1.5',
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are a helpful and friendly AI financial assistant called Kart-i-quo. Your goal is to provide clear, actionable financial advice based on the user's specific situation.
 
 You will be given a user's profile, their financial context, and a specific query. Analyze all this information to provide a comprehensive response.
@@ -86,9 +86,9 @@ const conversationalFinanceAssistantFlow = ai.defineFlow(
     inputSchema: ConversationalFinanceAssistantInputSchema,
     outputSchema: ConversationalFinanceAssistantOutputSchema,
   },
-  async input => {
+  async (input: ConversationalFinanceAssistantInput) => {
     try {
-      const {output} = await prompt(input);
+      const { output } = await prompt(input);
       if (!output) {
         throw new Error('AI model returned no output.');
       }

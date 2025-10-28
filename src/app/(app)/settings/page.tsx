@@ -61,11 +61,16 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     if (profile) {
-      form.reset({
-        role: profile.role,
-        income: profile.income,
-        fixedExpenses: profile.fixedExpenses.map(exp => ({...exp, timelineMonths: exp.timelineMonths || null })),
-      });
+            // Map role to allowed enum values; if it's empty/unknown, default to undefined
+            const mappedRole = ['Student', 'Professional', 'Housewife'].includes(profile.role as string)
+                ? (profile.role as 'Student' | 'Professional' | 'Housewife')
+                : undefined;
+
+            form.reset({
+                role: mappedRole,
+                income: profile.income,
+                fixedExpenses: profile.fixedExpenses.map(exp => ({...exp, timelineMonths: exp.timelineMonths || null })),
+            });
     }
   }, [profile, form]);
 

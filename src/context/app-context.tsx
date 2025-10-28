@@ -4,8 +4,8 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { UserProfile, Goal, Transaction, FixedExpense, LoggedPayments, Contribution, EmergencyFundEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import firebaseApp from '@/lib/firebase';
+import { signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase'; // use named auth export from firebase lib
 import { useRouter } from 'next/navigation';
 import { format, formatISO, startOfDay, parseISO } from 'date-fns';
 
@@ -70,7 +70,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   useEffect(() => {
-    const auth = getAuth(firebaseApp);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
         if (currentUser) {
@@ -357,7 +356,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   const logout = async () => {
-    const auth = getAuth(firebaseApp);
     try {
       await signOut(auth);
       router.push('/login');
@@ -378,9 +376,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(TRANSACTIONS_KEY);
         localStorage.removeItem(LOGGED_PAYMENTS_KEY);
 
-        const auth = getAuth(firebaseApp);
         if (auth.currentUser) {
-            await signOut(auth);
+          await signOut(auth);
         }
 
         toast({
