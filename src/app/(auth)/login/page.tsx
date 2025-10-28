@@ -36,6 +36,13 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
+      // Show which user signed in (displayName if available, otherwise email)
+      const user = auth.currentUser;
+      const who = user?.displayName ?? user?.email ?? 'Unknown user';
+      toast({
+        title: 'Signed in',
+        description: `Signed in as ${who}`,
+      });
       router.push('/dashboard');
     } catch (error: any) {
       toast({

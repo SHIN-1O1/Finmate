@@ -43,7 +43,7 @@ function FundActionDialog({ type, children }: { type: 'deposit' | 'withdraw', ch
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="xl:max-xl-md">
         <DialogHeader>
           <DialogTitle className="capitalize">{type} Funds</DialogTitle>
           <DialogDescription>

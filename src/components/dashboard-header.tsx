@@ -21,8 +21,9 @@ export function DashboardHeader() {
   const pathname = usePathname();
   const { profile, user } = useApp();
   
-  const title = (profile?.name && pathname === '/dashboard')
-    ? `Hello, ${profile.name.split(' ')[0]}!`
+  const displayName = profile?.name ?? user?.displayName;
+  const title = (displayName && pathname === '/dashboard')
+    ? `Hello, ${displayName.split(' ')[0]}!`
     : pageTitles[pathname] || 'Kart-i-quo';
 
   const getInitials = (emailOrName: string | undefined) => {
@@ -36,7 +37,7 @@ export function DashboardHeader() {
     return emailOrName.charAt(0).toUpperCase();
   }
   
-  const avatarIdentifier = profile?.name || user?.email || 'user';
+  const avatarIdentifier = profile?.name || user?.displayName || user?.email || 'user';
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
