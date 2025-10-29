@@ -22,11 +22,11 @@ const pageTitles: { [key: string]: string } = {
 export function DashboardHeader() {
   const pathname = usePathname();
   const { profile, user } = useApp();
-  
-  const displayName = profile?.name ?? user?.displayName;
-  const title = (displayName && pathname === '/dashboard')
-    ? `Hello, ${displayName.split(' ')[0]}!`
-    : pageTitles[pathname] || 'FinMate';
+
+  // Always show the page title (e.g., "Dashboard Overview") in the header.
+  // This prevents showing a duplicate greeting in the header when the page
+  // content already displays a personalized greeting.
+  const title = pageTitles[pathname] || 'FinMate';
 
   const getInitials = (emailOrName: string | undefined) => {
     if (!emailOrName) return 'U';

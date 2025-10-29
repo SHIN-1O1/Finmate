@@ -32,7 +32,7 @@ function StatCard({ title, value, icon, change, changeType }: { title: string, v
 }
 
 export default function DashboardPage() {
-  const { profile, goals, transactions, getTodaysSpending, getTotalGoalContributions, getCumulativeDailySavings } = useApp();
+  const { user, profile, goals, transactions, getTodaysSpending, getTotalGoalContributions, getCumulativeDailySavings } = useApp();
 
   const totalGoalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
   const totalGoalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
@@ -98,6 +98,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <h2 className="text-2xl font-semibold mb-6">
+        {profile?.name ? `Hello, ${profile.name.split(' ')[0]}!` : 'Welcome back!'}
+      </h2>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Monthly Income" 

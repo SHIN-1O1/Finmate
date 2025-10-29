@@ -4,17 +4,17 @@ import {
   doc,
   setDoc,
   getDoc,
-  updateDoc,
   deleteDoc,
   getDocs,
   query,
-  where,
-  orderBy
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import type { UserProfile, Goal, Transaction, FixedExpense } from './types';
 
 const COLLECTIONS = {
-  PROFILES: 'profiles',
+  USERS: 'users',
+  PROFILE: 'profile',
   GOALS: 'goals',
   TRANSACTIONS: 'transactions',
   FIXED_EXPENSES: 'fixed-expenses'
@@ -26,7 +26,8 @@ export class FirestoreService {
    */
   static async saveProfile(userId: string, profile: UserProfile): Promise<void> {
     try {
-      await setDoc(doc(db, COLLECTIONS.PROFILES, userId), profile);
+      // Store profile under users/{userId}/profile/main
+      await setDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main'), profile);
     } catch (error) {
       console.error('Error saving profile:', error);
       throw error;
@@ -35,8 +36,11 @@ export class FirestoreService {
 
   static async getProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const docRef = doc(db, COLLECTIONS.PROFILES, userId);
+      console.log('Getting profile for user:', userId);
+      const docRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main');
+      console.log('Profile document path:', docRef.path);
       const docSnap = await getDoc(docRef);
+      console.log('Profile exists:', docSnap.exists());
       return docSnap.exists() ? docSnap.data() as UserProfile : null;
     } catch (error) {
       console.error('Error getting profile:', error);
@@ -46,7 +50,7 @@ export class FirestoreService {
 
   static async updateProfile(userId: string, updates: UserProfile): Promise<void> {
     try {
-      const docRef = doc(db, COLLECTIONS.PROFILES, userId);
+      const docRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main');
       await setDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -59,10 +63,10 @@ export class FirestoreService {
    */
   static async saveGoal(userId: string, goal: Goal): Promise<void> {
     try {
-      await setDoc(doc(db, COLLECTIONS.GOALS, `${userId}_${goal.id}`), {
-        ...goal,
-        userId
-      });
+      await setDoc(
+        doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.GOALS, goal.id),
+        goal
+      );
     } catch (error) {
       console.error('Error saving goal:', error);
       throw error;
@@ -71,11 +75,8 @@ export class FirestoreService {
 
   static async getGoals(userId: string): Promise<Goal[]> {
     try {
-      const q = query(
-        collection(db, COLLECTIONS.GOALS),
-        where('userId', '==', userId),
-        orderBy('startDate', 'desc')
-      );
+      const goalsRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.GOALS);
+      const q = query(goalsRef, orderBy('startDate', 'desc'));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as Goal);
     } catch (error) {
@@ -86,7 +87,7 @@ export class FirestoreService {
 
   static async deleteGoal(userId: string, goalId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.GOALS, `${userId}_${goalId}`));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.GOALS, goalId));
     } catch (error) {
       console.error('Error deleting goal:', error);
       throw error;
@@ -98,10 +99,10 @@ export class FirestoreService {
    */
   static async saveTransaction(userId: string, transaction: Transaction): Promise<void> {
     try {
-      await setDoc(doc(db, COLLECTIONS.TRANSACTIONS, `${userId}_${transaction.id}`), {
-        ...transaction,
-        userId
-      });
+      await setDoc(
+        doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.TRANSACTIONS, transaction.id),
+        transaction
+      );
     } catch (error) {
       console.error('Error saving transaction:', error);
       throw error;
@@ -110,11 +111,8 @@ export class FirestoreService {
 
   static async getTransactions(userId: string): Promise<Transaction[]> {
     try {
-      const q = query(
-        collection(db, COLLECTIONS.TRANSACTIONS),
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
-      );
+      const transactionsRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.TRANSACTIONS);
+      const q = query(transactionsRef, orderBy('date', 'desc'));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as Transaction);
     } catch (error) {
@@ -125,7 +123,7 @@ export class FirestoreService {
 
   static async deleteTransaction(userId: string, transactionId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.TRANSACTIONS, `${userId}_${transactionId}`));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.TRANSACTIONS, transactionId));
     } catch (error) {
       console.error('Error deleting transaction:', error);
       throw error;
@@ -137,10 +135,10 @@ export class FirestoreService {
    */
   static async saveFixedExpense(userId: string, expense: FixedExpense): Promise<void> {
     try {
-      await setDoc(doc(db, COLLECTIONS.FIXED_EXPENSES, `${userId}_${expense.id}`), {
-        ...expense,
-        userId
-      });
+      await setDoc(
+        doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.FIXED_EXPENSES, expense.id),
+        expense
+      );
     } catch (error) {
       console.error('Error saving fixed expense:', error);
       throw error;
@@ -149,11 +147,8 @@ export class FirestoreService {
 
   static async getFixedExpenses(userId: string): Promise<FixedExpense[]> {
     try {
-      const q = query(
-        collection(db, COLLECTIONS.FIXED_EXPENSES),
-        where('userId', '==', userId),
-        orderBy('startDate', 'desc')
-      );
+      const expensesRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.FIXED_EXPENSES);
+      const q = query(expensesRef, orderBy('startDate', 'desc'));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as FixedExpense);
     } catch (error) {
@@ -164,7 +159,7 @@ export class FirestoreService {
 
   static async deleteFixedExpense(userId: string, expenseId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.FIXED_EXPENSES, `${userId}_${expenseId}`));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.FIXED_EXPENSES, expenseId));
     } catch (error) {
       console.error('Error deleting fixed expense:', error);
       throw error;
@@ -177,25 +172,28 @@ export class FirestoreService {
   static async deleteUserData(userId: string): Promise<void> {
     try {
       // Delete profile
-      await deleteDoc(doc(db, COLLECTIONS.PROFILES, userId));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main'));
 
       // Delete all goals
       const goals = await this.getGoals(userId);
       await Promise.all(goals.map(goal => 
-        deleteDoc(doc(db, COLLECTIONS.GOALS, `${userId}_${goal.id}`))
+        deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.GOALS, goal.id))
       ));
 
       // Delete all transactions
       const transactions = await this.getTransactions(userId);
       await Promise.all(transactions.map(tx => 
-        deleteDoc(doc(db, COLLECTIONS.TRANSACTIONS, `${userId}_${tx.id}`))
+        deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.TRANSACTIONS, tx.id))
       ));
 
       // Delete all fixed expenses
       const expenses = await this.getFixedExpenses(userId);
       await Promise.all(expenses.map(expense => 
-        deleteDoc(doc(db, COLLECTIONS.FIXED_EXPENSES, `${userId}_${expense.id}`))
+        deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.FIXED_EXPENSES, expense.id))
       ));
+
+      // Finally, delete the user document itself
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId));
     } catch (error) {
       console.error('Error deleting user data:', error);
       throw error;

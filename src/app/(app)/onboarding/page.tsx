@@ -78,10 +78,10 @@ export default function OnboardingPage() {
     const fixedExpenses = watchedFixedExpenses || [];
     
     const needs = fixedExpenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-    const disposableIncome = income - needs;
     
-    const wants = disposableIncome * 0.6;
-    const savings = disposableIncome * 0.4;
+    // Apply 50/30/20 rule based on total income
+    const wants = income * 0.3;
+    const savings = income * 0.2;
     const daily = wants > 0 ? wants / 30 : 0;
 
     return { monthlyNeeds: needs, monthlyWants: wants, monthlySavings: savings, dailyLimit: daily };
@@ -139,7 +139,8 @@ export default function OnboardingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>What's your current role?</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      {/* Use controlled value to avoid uncontrolled->controlled re-render issues */}
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select your role" />
@@ -288,7 +289,7 @@ export default function OnboardingPage() {
               <Card className="bg-secondary/50">
                   <CardHeader>
                     <CardTitle className="text-lg">Your Financial Breakdown</CardTitle>
-                    <CardDescription>Based on your disposable income (Income - Needs), we suggest a 60% (Wants) and 40% (Savings) split.</CardDescription>
+                    <CardDescription>Based on your income, we suggest following the 50/30/20 rule: 50% Needs, 30% Wants, 20% Savings.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <SummaryCard title="Needs" amount={monthlyNeeds} icon={<Wallet className="h-5 w-5 text-primary" />} description="Your total fixed costs." />

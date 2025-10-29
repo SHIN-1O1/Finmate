@@ -58,11 +58,12 @@ export default function LoginPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mx-auto">
-          <img
+          <Image
             src="/FINMATE.png"
             alt="FinMate"
             width={36}
             height={36}
+            style={{ width: 'auto', height: 'auto' }}
             className="object-contain"
           />
         </div>
@@ -92,7 +93,12 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      autoComplete="current-password"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

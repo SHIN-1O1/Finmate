@@ -5,7 +5,8 @@ import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { UserProfile, Goal, Transaction, FixedExpense, LoggedPayments, Contribution, EmergencyFundEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // use named auth export from firebase lib
+import { auth } from '@/lib/firebase';
+import { FirestoreService } from '@/lib/firestore';
 import { useRouter } from 'next/navigation';
 import { format, formatISO, startOfDay, parseISO } from 'date-fns';
 
@@ -45,10 +46,10 @@ const LOGGED_PAYMENTS_KEY = `${KART_I_QUO_PREFIX}logged-payments`;
 
 const calculateBudget = (income: number, fixedExpenses: { amount: number }[]): Pick<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'> => {
     const needs = fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    const disposableIncome = income - needs;
     
-    const wants = disposableIncome * 0.6;
-    const savings = disposableIncome * 0.4;
+    // Apply 50/30/20 rule based on total income
+    const wants = income * 0.3;
+    const savings = income * 0.2;
     const daily = wants > 0 ? wants / 30 : 0;
 
     return {
@@ -58,7 +59,6 @@ const calculateBudget = (income: number, fixedExpenses: { amount: number }[]): P
         dailySpendingLimit: daily,
     };
 };
-
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
@@ -72,30 +72,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        console.log('Auth state changed:', currentUser ? `User ${currentUser.uid} logged in` : 'No user');
         setUser(currentUser);
         if (currentUser) {
-            // User is signed in, load their data
-             try {
-                const storedProfile = localStorage.getItem(PROFILE_KEY);
-                if (storedProfile) {
-                    let parsedProfile: UserProfile = JSON.parse(storedProfile);
-                    const budget = calculateBudget(parsedProfile.income, parsedProfile.fixedExpenses);
-                    const updatedProfile = { 
-                        ...parsedProfile, 
-                        emergencyFund: parsedProfile.emergencyFund || { target: 0, current: 0, history: [] },
-                        ...budget 
+            try {
+                // Load profile from Firestore
+                const userProfile = await FirestoreService.getProfile(currentUser.uid);
+                if (userProfile) {
+                    const budget = calculateBudget(userProfile.income, userProfile.fixedExpenses);
+                    const updatedProfile = {
+                        ...userProfile,
+                        ...budget,
+                        emergencyFund: userProfile.emergencyFund || { target: 0, current: 0, history: [] }
                     };
                     setProfile(updatedProfile);
                     setOnboardingComplete(!!updatedProfile.role);
                 } else {
-                    setProfile(null); // Explicitly set to null if no profile exists
+                    setProfile(null);
                 }
 
-                const storedGoals = localStorage.getItem(GOALS_KEY);
-                setGoals(storedGoals ? JSON.parse(storedGoals) : []);
-                const storedTransactions = localStorage.getItem(TRANSACTIONS_KEY);
-                setTransactions(storedTransactions ? JSON.parse(storedTransactions) : []);
+                // Load goals from Firestore
+                const userGoals = await FirestoreService.getGoals(currentUser.uid);
+                setGoals(userGoals || []);
+
+                // Load transactions from Firestore
+                const userTransactions = await FirestoreService.getTransactions(currentUser.uid);
+                setTransactions(userTransactions || []);
+
+                // Keep logged payments in localStorage for performance
                 const storedLoggedPayments = localStorage.getItem(LOGGED_PAYMENTS_KEY);
                 setLoggedPayments(storedLoggedPayments ? JSON.parse(storedLoggedPayments) : {});
 
@@ -125,55 +130,113 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateProfile = (newProfileData: Partial<Omit<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'>>) => {
-    const income = newProfileData.income ?? profile?.income ?? 0;
-    const fixedExpenses = newProfileData.fixedExpenses?.map(exp => ({
-        ...exp,
-        id: exp.id || Math.random().toString(),
-        startDate: (exp.timelineMonths && !exp.startDate) ? formatISO(new Date()) : exp.startDate
-    })) ?? profile?.fixedExpenses ?? [];
-    
-    const budget = calculateBudget(income, fixedExpenses);
+  const updateProfile = async (newProfileData: Partial<Omit<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'>>) => {
+    if (!user) return;
 
-    const updatedProfile: UserProfile = { 
-        ...profile, 
-        ...newProfileData,
-        fixedExpenses,
-        ...budget,
-        emergencyFund: profile?.emergencyFund || { target: 0, current: 0, history: [] }
-    } as UserProfile;
-    
-    setProfile(updatedProfile);
-    setOnboardingComplete(true);
-    persistState(PROFILE_KEY, updatedProfile);
+    try {
+      // Prepare base profile data
+      const income = newProfileData.income ?? profile?.income ?? 0;
+      const fixedExpenses = newProfileData.fixedExpenses?.map(exp => ({
+          id: exp.id || crypto.randomUUID(),
+          name: exp.name || '',
+          amount: exp.amount || 0,
+          category: exp.category || 'Other',
+          timelineMonths: exp.timelineMonths,
+          startDate: (exp.timelineMonths && !exp.startDate) ? formatISO(new Date()) : exp.startDate || formatISO(new Date())
+      })) ?? profile?.fixedExpenses ?? [];
+      
+      const budget = calculateBudget(income, fixedExpenses);
+
+      // Create a complete profile object with all required fields
+      const updatedProfile: UserProfile = {
+          role: newProfileData.role || profile?.role || '',
+          name: newProfileData.name || profile?.name || '',
+          income,
+          fixedExpenses,
+          ...budget,
+          emergencyFund: {
+            target: newProfileData.emergencyFund?.target ?? profile?.emergencyFund?.target ?? 0,
+            current: newProfileData.emergencyFund?.current ?? profile?.emergencyFund?.current ?? 0,
+            history: newProfileData.emergencyFund?.history ?? profile?.emergencyFund?.history ?? []
+          }
+      };
+      
+      // Debug log before saving
+      console.log('About to save profile:', JSON.stringify(updatedProfile, null, 2));
+      
+      await FirestoreService.updateProfile(user.uid, updatedProfile);
+      setProfile(updatedProfile);
+      setOnboardingComplete(true);
+
+      console.log('Profile saved successfully');
+      toast({
+        title: "Success",
+        description: "Profile updated successfully"
+      });
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive"
+      });
+    }
   };
 
-  const addGoal = (goalData: Omit<Goal, 'id' | 'currentAmount' | 'contributions'>) => {
-    const newGoal: Goal = {
-      ...goalData,
-      id: Date.now().toString(),
-      currentAmount: 0,
-      startDate: goalData.timelineMonths ? formatISO(new Date()) : undefined,
-      contributions: [],
-    };
-    const newGoals = [...goals, newGoal];
-    setGoals(newGoals);
-    persistState(GOALS_KEY, newGoals);
-    toast({
-      title: 'Goal Added!',
-      description: `You're now saving for "${newGoal.name}".`,
-    });
+  const addGoal = async (goalData: Omit<Goal, 'id' | 'currentAmount' | 'contributions'>) => {
+    if (!user) return;
+
+    try {
+      const newGoal: Goal = {
+        ...goalData,
+        id: crypto.randomUUID(),
+        currentAmount: 0,
+        startDate: goalData.timelineMonths ? formatISO(new Date()) : undefined,
+        contributions: [],
+      };
+
+      await FirestoreService.saveGoal(user.uid, newGoal);
+      setGoals(prev => [...prev, newGoal]);
+
+      toast({
+        title: 'Goal Added!',
+        description: `You're now saving for "${newGoal.name}".`,
+      });
+    } catch (error) {
+      console.error("Failed to add goal:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add goal",
+        variant: "destructive"
+      });
+    }
   };
 
-  const addTransaction = (transactionData: Omit<Transaction, 'id' | 'date'>) => {
-    const newTransaction: Transaction = {
-      ...transactionData,
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-    };
-    const newTransactions = [newTransaction, ...transactions];
-    setTransactions(newTransactions);
-    persistState(TRANSACTIONS_KEY, newTransactions);
+  const addTransaction = async (transactionData: Omit<Transaction, 'id' | 'date'>) => {
+    if (!user) return;
+
+    try {
+      const newTransaction: Transaction = {
+        ...transactionData,
+        id: crypto.randomUUID(),
+        date: formatISO(new Date()),
+      };
+
+      await FirestoreService.saveTransaction(user.uid, newTransaction);
+      setTransactions(prev => [newTransaction, ...prev]);
+
+      toast({
+        title: "Success",
+        description: "Transaction added successfully"
+      });
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add transaction",
+        variant: "destructive"
+      });
+    }
   };
 
   const updateGoal = (goalId: string, updatedData: Partial<Omit<Goal, 'id'>>) => {
@@ -188,26 +251,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
   
-  const updateTransaction = (transactionId: string, updatedData: Partial<Omit<Transaction, 'id' | 'date'>>) => {
-    const newTransactions = transactions.map(t =>
-      t.id === transactionId ? { ...t, ...updatedData } : t
-    );
-    setTransactions(newTransactions);
-    persistState(TRANSACTIONS_KEY, newTransactions);
-    toast({
-        title: 'Transaction Updated',
-        description: 'Your expense has been successfully updated.',
-    });
+  const updateTransaction = async (transactionId: string, updatedData: Partial<Omit<Transaction, 'id' | 'date'>>) => {
+    if (!user) return;
+
+    try {
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction) throw new Error("Transaction not found");
+
+      const updatedTransaction = {
+        ...transaction,
+        ...updatedData
+      };
+
+      await FirestoreService.saveTransaction(user.uid, updatedTransaction);
+      setTransactions(prev => prev.map(t => t.id === transactionId ? updatedTransaction : t));
+
+      toast({
+        title: "Success",
+        description: "Transaction updated successfully"
+      });
+    } catch (error) {
+      console.error("Failed to update transaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update transaction",
+        variant: "destructive"
+      });
+    }
   };
 
-  const deleteTransaction = (transactionId: string) => {
-    const newTransactions = transactions.filter(t => t.id !== transactionId);
-    setTransactions(newTransactions);
-    persistState(TRANSACTIONS_KEY, newTransactions);
-    toast({
-        title: 'Transaction Deleted',
-        description: 'Your expense has been removed.',
-    });
+  const deleteTransaction = async (transactionId: string) => {
+    if (!user) return;
+
+    try {
+      await FirestoreService.deleteTransaction(user.uid, transactionId);
+      setTransactions(prev => prev.filter(t => t.id !== transactionId));
+
+      toast({
+        title: "Success",
+        description: "Transaction deleted successfully"
+      });
+    } catch (error) {
+      console.error("Failed to delete transaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete transaction",
+        variant: "destructive"
+      });
+    }
   };
 
   const getTodaysSpending = () => {

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { FirestoreService } from '@/lib/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,8 +37,10 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupValues) => {
     setIsLoading(true);
     try {
+      // Create the user account
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      // If the user provided a name, set the Firebase auth displayName so it's available immediately
+      
+      // Set the display name in Firebase Auth
       if (data.name && auth.currentUser) {
         try {
           await updateProfile(auth.currentUser, { displayName: data.name });
@@ -45,6 +48,26 @@ export default function SignupPage() {
           console.warn('Failed to set displayName on signup:', err);
         }
       }
+
+      // Create initial profile in Firestore
+      if (userCredential.user) {
+        await FirestoreService.saveProfile(userCredential.user.uid, {
+          name: data.name,
+          role: '', // Leave role empty so onboarding isn't considered complete
+          income: 0,
+          monthlyNeeds: 0,
+          monthlyWants: 0,
+          monthlySavings: 0,
+          dailySpendingLimit: 0,
+          fixedExpenses: [],
+          emergencyFund: {
+            current: 0,
+            target: 0,
+            history: []
+          }
+        });
+      }
+
       router.push('/onboarding');
     } catch (error: any) {
       toast({
@@ -60,11 +83,12 @@ export default function SignupPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mx-auto">
-          <img
+          <Image
             src="/FINMATE.png"
             alt="FinMate"
             width={36}
             height={36}
+            style={{ width: 'auto', height: 'auto' }}
             className="object-contain"
           />
         </div>
@@ -108,7 +132,12 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      autoComplete="new-password"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
