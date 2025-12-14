@@ -12,6 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
     "@genkit-ai/ai": "^1.21.0",
     "@genkit-ai/core": "^1.21.0",
     "@genkit-ai/firebase": "^1.21.0",
