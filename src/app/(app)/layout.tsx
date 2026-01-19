@@ -13,6 +13,7 @@ import {
   Settings,
   CreditCard,
   ShieldAlert,
+  TrendingUp,
 } from 'lucide-react';
 import { useApp } from '@/hooks/use-app';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarInset } from '@/components/ui/sidebar';
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/expenses', icon: <PieChart />, label: 'Expenses' },
   { href: '/fixed-expenses', icon: <CreditCard />, label: 'Fixed Expenses' },
   { href: '/emergency-fund', icon: <ShieldAlert />, label: 'Emergency Fund' },
+  { href: '/investments', icon: <TrendingUp />, label: 'Investments' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

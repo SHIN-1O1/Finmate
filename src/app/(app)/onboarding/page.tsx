@@ -32,7 +32,7 @@ const fixedExpenseSchema = z.object({
 });
 
 const onboardingSchema = z.object({
-  role: z.enum(['Student', 'Professional', 'Housewife']),
+  role: z.enum(['Student', 'Professional', 'Homemaker']),
   income: z.coerce.number().min(0, 'Income cannot be negative'),
   fixedExpenses: z.array(fixedExpenseSchema).optional(),
 });
@@ -74,7 +74,7 @@ export default function OnboardingPage() {
   const watchedFixedExpenses = form.watch('fixedExpenses');
   const watchedRole = form.watch('role');
 
-  // Role-based budget calculation: Student 60/30/10, Professional 50/30/20, Housewife 55/25/20
+  // Role-based budget calculation: Student 60/30/10, Professional 50/30/20, Homemaker 55/25/20
   const { monthlyNeeds, monthlyWants, monthlySavings, dailyLimit } = React.useMemo(() => {
     const income = Number(watchedIncome) || 0;
     const fixedExpenses = watchedFixedExpenses || [];
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
                         <SelectContent>
                           <SelectItem value="Student">Student</SelectItem>
                           <SelectItem value="Professional">Professional</SelectItem>
-                          <SelectItem value="Housewife">Housewife</SelectItem>
+                          <SelectItem value="Homemaker">Homemaker</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

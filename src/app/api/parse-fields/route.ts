@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     ];
 
     const instructions = {
-      onboarding: `Produce a JSON object with keys: role (Student|Professional|Housewife), income (number), fixedExpenses (array of {name,category,amount,timelineMonths,startDate?}). Parse dates as ISO strings. Only output JSON, no explanation. If a field is missing, omit it.`,
+      onboarding: `Produce a JSON object with keys: role (Student|Professional|Homemaker), income (number), fixedExpenses (array of {name,category,amount,timelineMonths,startDate?}). Parse dates as ISO strings. Only output JSON, no explanation. If a field is missing, omit it.`,
       expense: `Produce a JSON object with keys: description (short string, 2-6 words), amount (number = total amount on the receipt), category (one of ${allowedCategories.join(
         ', '
       )}), date (ISO date if available). Only output JSON, no explanation. The category value MUST be exactly one of the allowed values: ${allowedCategories.join(

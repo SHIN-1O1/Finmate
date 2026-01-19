@@ -1,5 +1,5 @@
 
-export type UserRole = 'Student' | 'Professional' | 'Housewife' | '';
+export type UserRole = 'Student' | 'Professional' | 'Homemaker' | '';
 
 export interface UserProfile {
   name?: string;
@@ -92,7 +92,7 @@ export const roleSpecificCategories = {
     'Utilities',
     'Other',
   ],
-  Housewife: [
+  Homemaker: [
     'Groceries',
     'Healthcare',
     'Education',
@@ -130,7 +130,7 @@ export const roleGoalTemplates = {
     { name: 'Investment Corpus', suggestedAmount: 200000, timelineMonths: 18 },
     { name: 'Car Down Payment', suggestedAmount: 150000, timelineMonths: 24 },
   ],
-  Housewife: [
+  Homemaker: [
     { name: 'Kids Education', suggestedAmount: 100000, timelineMonths: 24 },
     { name: 'Family Medical Fund', suggestedAmount: 50000, timelineMonths: 12 },
     { name: 'Festival Savings', suggestedAmount: 30000, timelineMonths: 10 },

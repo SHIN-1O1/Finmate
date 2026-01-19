@@ -32,7 +32,7 @@ const fixedExpenseSchema = z.object({
 });
 
 const profileSchema = z.object({
-  role: z.enum(['Student', 'Professional', 'Housewife']),
+  role: z.enum(['Student', 'Professional', 'Homemaker']),
   income: z.coerce.number().min(0, 'Income cannot be negative'),
   fixedExpenses: z.array(fixedExpenseSchema).optional(),
 });
@@ -62,8 +62,8 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (profile) {
             // Map role to allowed enum values; if it's empty/unknown, default to undefined
-            const mappedRole = ['Student', 'Professional', 'Housewife'].includes(profile.role as string)
-                ? (profile.role as 'Student' | 'Professional' | 'Housewife')
+            const mappedRole = ['Student', 'Professional', 'Homemaker'].includes(profile.role as string)
+                ? (profile.role as 'Student' | 'Professional' | 'Homemaker')
                 : undefined;
 
             form.reset({
@@ -109,7 +109,7 @@ export default function SettingsPage() {
                         <SelectContent>
                             <SelectItem value="Student">Student</SelectItem>
                             <SelectItem value="Professional">Professional</SelectItem>
-                            <SelectItem value="Housewife">Housewife</SelectItem>
+                            <SelectItem value="Homemaker">Homemaker</SelectItem>
                         </SelectContent>
                         </Select>
                         <FormMessage />
