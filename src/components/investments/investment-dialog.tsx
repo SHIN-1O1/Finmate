@@ -1,191 +1,142 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Investment } from '@/lib/investment-types';
-import { UserProfile } from '@/lib/types';
-import { investmentAdvisor, InvestmentAdvisorOutput } from '@/ai/flows/investment-advisor';
-import { Lightbulb, TrendingUp, AlertCircle, Loader } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Investment, InvestmentType, InvestmentStatus } from '@/lib/investment-types';
 
-interface InvestmentRecommendationsProps {
-  profile?: UserProfile;
-  investments: Investment[];
+interface InvestmentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (investment: Investment) => void;
 }
 
-export default function InvestmentRecommendations({ profile, investments }: InvestmentRecommendationsProps) {
-  const [recommendations, setRecommendations] = useState<InvestmentAdvisorOutput | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [riskTolerance, setRiskTolerance] = useState<'Low' | 'Medium' | 'High'>('Medium');
+const investmentTypes: InvestmentType[] = ['Stock', 'Mutual Fund', 'SIP', 'Cryptocurrency', 'Bonds', 'Fixed Deposit', 'Gold', 'Real Estate'];
 
-  const loadRecommendations = async () => {
-    if (!profile) return;
+export default function InvestmentDialog({ open, onOpenChange, onSave }: InvestmentDialogProps) {
+  const [name, setName] = useState('');
+  const [type, setType] = useState<InvestmentType>('Mutual Fund');
+  const [purchaseAmount, setPurchaseAmount] = useState<number>(0);
+  const [currentValue, setCurrentValue] = useState<number>(0);
+  const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [notes, setNotes] = useState('');
 
-    setLoading(true);
-    try {
-      const result = await investmentAdvisor({
-        role: profile.role,
-        income: profile.income,
-        savings: profile.monthlySavings || 0,
-        currentInvestments: investments.map(inv => ({
-          type: inv.type,
-          amount: inv.purchaseAmount,
-        })),
-        riskTolerance,
-        investmentTimeline: 5,
-        taxSavingGoal: profile.income * 0.3,
-      });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const investment: Investment = {
+      id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      type,
+      purchaseAmount,
+      currentValue: currentValue || purchaseAmount,
+      purchaseDate,
+      status: 'Active' as InvestmentStatus,
+      notes,
+    };
 
-      setRecommendations(result);
-    } catch (error) {
-      console.error('Error loading recommendations:', error);
-    } finally {
-      setLoading(false);
-    }
+    onSave(investment);
+    
+    // Reset form
+    setName('');
+    setType('Mutual Fund');
+    setPurchaseAmount(0);
+    setCurrentValue(0);
+    setPurchaseDate(new Date().toISOString().split('T')[0]);
+    setNotes('');
   };
 
-  useEffect(() => {
-    loadRecommendations();
-  }, [profile, riskTolerance]);
-
-  if (!profile) {
-    return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Complete your profile first to get AI recommendations</AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Risk Tolerance Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Your Risk Tolerance</CardTitle>
-          <CardDescription>This helps us recommend suitable investments for your professional profile</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(['Low', 'Medium', 'High'] as const).map(risk => (
-              <button
-                key={risk}
-                onClick={() => setRiskTolerance(risk)}
-                className={`p-4 rounded-lg border-2 transition ${
-                  riskTolerance === risk
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="font-semibold">{risk} Risk</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {risk === 'Low' && 'Fixed Deposits, Bonds, PPF - Stable returns'}
-                  {risk === 'Medium' && 'Balanced Funds, Blue-chip Stocks - Growth + Safety'}
-                  {risk === 'High' && 'Equity Funds, Small-cap Stocks - Maximum growth'}
-                </p>
-              </button>
-            ))}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Add New Investment</DialogTitle>
+          <DialogDescription>
+            Enter the details of your investment to track it in your portfolio.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Investment Name</Label>
+            <Input
+              id="name"
+              placeholder="e.g., HDFC Balanced Fund"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {loading && (
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
-            <p>Getting personalized recommendations for professionals...</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {recommendations && !loading && (
-        <>
-          {/* AI Overall Advice */}
-          <Alert className="bg-blue-50 border-blue-200">
-            <Lightbulb className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-900">
-              {recommendations.overallAdvice}
-            </AlertDescription>
-          </Alert>
-
-          {/* Investment Recommendations */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recommended Investments</CardTitle>
-              <CardDescription>Personalized for professionals with your income level</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recommendations.recommendations.map((rec, idx) => (
-                  <div key={idx} className="border rounded-lg p-4 hover:bg-secondary transition">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold text-lg">{rec.title}</p>
-                        <p className="text-sm text-muted-foreground">{rec.type}</p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        rec.riskLevel === 'Low'
-                          ? 'bg-green-100 text-green-800'
-                          : rec.riskLevel === 'Medium'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {rec.riskLevel} Risk
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-gray-600 mb-3">{rec.description}</p>
-
-                    <div className="grid grid-cols-3 gap-4 p-3 bg-secondary rounded text-sm mb-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Expected Return</p>
-                        <p className="font-semibold text-green-600">{rec.estimatedReturn}% p.a.</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Min. Investment</p>
-                        <p className="font-semibold">₹{rec.minInvestment.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Why Recommended</p>
-                        <p className="font-semibold text-xs">{rec.reason.substring(0, 30)}...</p>
-                      </div>
-                    </div>
-
-                    <Button variant="outline" className="w-full">Explore {rec.title}</Button>
-                  </div>
+          <div className="space-y-2">
+            <Label htmlFor="type">Investment Type</Label>
+            <Select value={type} onValueChange={(value: string) => setType(value as InvestmentType)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {investmentTypes.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
+              </SelectContent>
+            </Select>
+          </div>
 
-          {/* Tax-Saving Strategies */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tax-Saving Strategies</CardTitle>
-              <CardDescription>Strategic investment approach for professionals</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recommendations.taxSavingStrategies.map((strategy, idx) => (
-                  <div key={idx} className="border rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <TrendingUp className="w-5 h-5 text-green-600 flex-shrink-0 mt-1" />
-                      <div className="flex-1">
-                        <p className="font-semibold">{strategy.section}</p>
-                        <p className="text-sm text-muted-foreground">{strategy.description}</p>
-                        <p className="text-sm font-semibold text-green-600 mt-2">
-                          💰 Potential Savings: ₹{strategy.potentialSavings.toLocaleString('en-IN')}/year
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="purchaseAmount">Purchase Amount (₹)</Label>
+              <Input
+                id="purchaseAmount"
+                type="number"
+                placeholder="0"
+                value={purchaseAmount || ''}
+                onChange={(e) => setPurchaseAmount(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currentValue">Current Value (₹)</Label>
+              <Input
+                id="currentValue"
+                type="number"
+                placeholder="0"
+                value={currentValue || ''}
+                onChange={(e) => setCurrentValue(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="purchaseDate">Purchase Date</Label>
+            <Input
+              id="purchaseDate"
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Input
+              id="notes"
+              placeholder="Any additional notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Add Investment</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

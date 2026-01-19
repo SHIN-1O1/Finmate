@@ -20,12 +20,13 @@ export default function InvestmentRecommendations({ profile, investments }: Inve
   const [riskTolerance, setRiskTolerance] = useState<'Low' | 'Medium' | 'High'>('Medium');
 
   const loadRecommendations = async () => {
-    if (!profile) return;
+    if (!profile || !profile.role) return;
 
     setLoading(true);
     try {
+      const role = profile.role as 'Student' | 'Professional' | 'Housewife';
       const result = await investmentAdvisor({
-        role: profile.role,
+        role,
         income: profile.income,
         savings: profile.monthlySavings || 0,
         currentInvestments: investments.map(inv => ({
@@ -140,7 +141,7 @@ export default function InvestmentRecommendations({ profile, investments }: Inve
                     <div className="grid grid-cols-3 gap-4 p-3 bg-secondary rounded text-sm mb-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Expected Return</p>
-                        <p className="font-semibold text-green-600">{rec.estimatedReturn}% p.a.</p>
+                        <p className="font-semibold text-green-600">{rec.expectedReturn}% p.a.</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Min. Investment</p>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -13,6 +12,7 @@ import {
   Settings,
   CreditCard,
   ShieldAlert,
+  Trophy,
   TrendingUp,
 } from 'lucide-react';
 import { useApp } from '@/hooks/use-app';
@@ -28,6 +28,7 @@ const navItems = [
   { href: '/expenses', icon: <PieChart />, label: 'Expenses' },
   { href: '/fixed-expenses', icon: <CreditCard />, label: 'Fixed Expenses' },
   { href: '/emergency-fund', icon: <ShieldAlert />, label: 'Emergency Fund' },
+  { href: '/badges', icon: <Trophy />, label: 'Badges' },
   { href: '/investments', icon: <TrendingUp />, label: 'Investments' },
 ];
 
@@ -40,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!authLoaded) return;
     // If we've checked auth and there's no user, send them to login
     if (user === null) {
-        router.replace('/login');
+      router.replace('/login');
     }
   }, [authLoaded, user, router]);
 
@@ -50,9 +51,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const isOnboardingPage = pathname === '/onboarding';
 
     if (hasCompletedOnboarding && isOnboardingPage) {
-        router.replace('/dashboard');
+      router.replace('/dashboard');
     } else if (!hasCompletedOnboarding && !isOnboardingPage) {
-        router.replace('/onboarding');
+      router.replace('/onboarding');
     }
   }, [authLoaded, user, profile, pathname, router]);
 
@@ -83,16 +84,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-                  <img
-                    src="/FINMATE.png"
-                    alt="FinMate"
-                    width={28}
-                    height={28}
-                    className="object-contain"
-                  />
-                </div>
-                <span className="font-bold text-lg text-[#4ADE80]">FinMate</span>
+              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                <img
+                  src="/FINMATE.png"
+                  alt="FinMate"
+                  width={28}
+                  height={28}
+                  className="object-contain"
+                />
+              </div>
+              <span className="font-bold text-lg text-[#4ADE80]">FinMate</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -113,22 +114,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
-             <SidebarMenu>
-                <SidebarMenuItem>
-                    <Link href="/settings">
-                        <SidebarMenuButton tooltip="Settings" isActive={pathname === '/settings'}>
-                            <Settings />
-                            <span>Settings</span>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton tooltip="Log Out" onClick={logout}>
-                        <LogOut />
-                        <span>Log Out</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-             </SidebarMenu>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/settings">
+                  <SidebarMenuButton tooltip="Settings" isActive={pathname === '/settings'}>
+                    <Settings />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Log Out" onClick={logout}>
+                  <LogOut />
+                  <span>Log Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
         <div className="flex-1 flex flex-col">

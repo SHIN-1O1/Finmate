@@ -1,14 +1,14 @@
-
 "use client";
 
-import React, { createContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import type { UserProfile, Goal, Transaction, FixedExpense, LoggedPayments, Contribution, EmergencyFundEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirestoreService } from '@/lib/firestore';
 import { useRouter } from 'next/navigation';
-import { format, formatISO, startOfDay, parseISO } from 'date-fns';
+import { format, formatISO, startOfDay, parseISO, subDays, isAfter, isSameDay } from 'date-fns';
+import { BADGES, Badge, DEFAULT_GAMIFICATION_STATE, checkBadgeEligibility, BadgeCheckContext } from '@/lib/gamification';
 
 interface AppContextType {
   user: User | null | undefined;
@@ -34,6 +34,10 @@ interface AppContextType {
   getLoggedPaymentCount: (expenseId: string) => number;
   updateEmergencyFund: (action: 'deposit' | 'withdraw', amount: number, notes?: string) => void;
   setEmergencyFundTarget: (target: number) => void;
+  // Gamification
+  getCurrentStreak: () => number;
+  getEarnedBadges: () => Badge[];
+  awardBadge: (badgeId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -45,19 +49,19 @@ const TRANSACTIONS_KEY = `${KART_I_QUO_PREFIX}transactions`;
 const LOGGED_PAYMENTS_KEY = `${KART_I_QUO_PREFIX}logged-payments`;
 
 const calculateBudget = (income: number, fixedExpenses: { amount: number }[]): Pick<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'> => {
-    const needs = fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    
-    // Apply 50/30/20 rule based on total income
-    const wants = income * 0.3;
-    const savings = income * 0.2;
-    const daily = wants > 0 ? wants / 30 : 0;
+  const needs = fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
-    return {
-        monthlyNeeds: needs,
-        monthlyWants: wants,
-        monthlySavings: savings,
-        dailySpendingLimit: daily,
-    };
+  // Apply 50/30/20 rule based on total income
+  const wants = income * 0.3;
+  const savings = income * 0.2;
+  const daily = wants > 0 ? wants / 30 : 0;
+
+  return {
+    monthlyNeeds: needs,
+    monthlyWants: wants,
+    monthlySavings: savings,
+    dailySpendingLimit: daily,
+  };
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -73,51 +77,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        console.log('Auth state changed:', currentUser ? `User ${currentUser.uid} logged in` : 'No user');
-        setUser(currentUser);
-        if (currentUser) {
-            try {
-                // Load profile from Firestore
-                const userProfile = await FirestoreService.getProfile(currentUser.uid);
-                if (userProfile) {
-                    const budget = calculateBudget(userProfile.income, userProfile.fixedExpenses);
-                    const updatedProfile = {
-                        ...userProfile,
-                        ...budget,
-                        emergencyFund: userProfile.emergencyFund || { target: 0, current: 0, history: [] }
-                    };
-                    setProfile(updatedProfile);
-                    setOnboardingComplete(!!updatedProfile.role);
-                } else {
-                    setProfile(null);
-                }
-
-                // Load goals from Firestore
-                const userGoals = await FirestoreService.getGoals(currentUser.uid);
-                setGoals(userGoals || []);
-
-                // Load transactions from Firestore
-                const userTransactions = await FirestoreService.getTransactions(currentUser.uid);
-                setTransactions(userTransactions || []);
-
-                // Keep logged payments in localStorage for performance
-                const storedLoggedPayments = localStorage.getItem(LOGGED_PAYMENTS_KEY);
-                setLoggedPayments(storedLoggedPayments ? JSON.parse(storedLoggedPayments) : {});
-
-            } catch (error) {
-                console.error("Failed to load data from localStorage", error);
-                setProfile(null);
-            }
-        } else {
-            // User is signed out, clear data
+      console.log('Auth state changed:', currentUser ? `User ${currentUser.uid} logged in` : 'No user');
+      setUser(currentUser);
+      if (currentUser) {
+        try {
+          // Load profile from Firestore
+          const userProfile = await FirestoreService.getProfile(currentUser.uid);
+          if (userProfile) {
+            const budget = calculateBudget(userProfile.income, userProfile.fixedExpenses);
+            const updatedProfile = {
+              ...userProfile,
+              ...budget,
+              emergencyFund: userProfile.emergencyFund || { target: 0, current: 0, history: [] },
+              gamification: userProfile.gamification || DEFAULT_GAMIFICATION_STATE,
+            };
+            setProfile(updatedProfile);
+            setOnboardingComplete(!!updatedProfile.role);
+          } else {
             setProfile(null);
-            setGoals([]);
-            setTransactions([]);
-            setLoggedPayments({});
-            setOnboardingComplete(false);
+          }
+
+          // Load goals from Firestore
+          const userGoals = await FirestoreService.getGoals(currentUser.uid);
+          setGoals(userGoals || []);
+
+          // Load transactions from Firestore
+          const userTransactions = await FirestoreService.getTransactions(currentUser.uid);
+          setTransactions(userTransactions || []);
+
+          // Keep logged payments in localStorage for performance
+          const storedLoggedPayments = localStorage.getItem(LOGGED_PAYMENTS_KEY);
+          setLoggedPayments(storedLoggedPayments ? JSON.parse(storedLoggedPayments) : {});
+
+        } catch (error) {
+          console.error("Failed to load data from localStorage", error);
+          setProfile(null);
         }
-    // Mark that auth state has been determined at least once
-    setAuthLoaded(true);
+      } else {
+        // User is signed out, clear data
+        setProfile(null);
+        setGoals([]);
+        setTransactions([]);
+        setLoggedPayments({});
+        setOnboardingComplete(false);
+      }
+      // Mark that auth state has been determined at least once
+      setAuthLoaded(true);
     });
     return () => unsubscribe();
   }, []);
@@ -137,33 +142,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Prepare base profile data
       const income = newProfileData.income ?? profile?.income ?? 0;
       const fixedExpenses = newProfileData.fixedExpenses?.map(exp => ({
-          id: exp.id || crypto.randomUUID(),
-          name: exp.name || '',
-          amount: exp.amount || 0,
-          category: exp.category || 'Other',
-          timelineMonths: exp.timelineMonths,
-          startDate: (exp.timelineMonths && !exp.startDate) ? formatISO(new Date()) : exp.startDate || formatISO(new Date())
+        id: exp.id || crypto.randomUUID(),
+        name: exp.name || '',
+        amount: exp.amount || 0,
+        category: exp.category || 'Other',
+        timelineMonths: exp.timelineMonths,
+        startDate: (exp.timelineMonths && !exp.startDate) ? formatISO(new Date()) : exp.startDate || formatISO(new Date())
       })) ?? profile?.fixedExpenses ?? [];
-      
+
       const budget = calculateBudget(income, fixedExpenses);
 
       // Create a complete profile object with all required fields
       const updatedProfile: UserProfile = {
-          role: newProfileData.role || profile?.role || '',
-          name: newProfileData.name || profile?.name || '',
-          income,
-          fixedExpenses,
-          ...budget,
-          emergencyFund: {
-            target: newProfileData.emergencyFund?.target ?? profile?.emergencyFund?.target ?? 0,
-            current: newProfileData.emergencyFund?.current ?? profile?.emergencyFund?.current ?? 0,
-            history: newProfileData.emergencyFund?.history ?? profile?.emergencyFund?.history ?? []
-          }
+        role: newProfileData.role || profile?.role || '',
+        name: newProfileData.name || profile?.name || '',
+        income,
+        fixedExpenses,
+        ...budget,
+        emergencyFund: {
+          target: newProfileData.emergencyFund?.target ?? profile?.emergencyFund?.target ?? 0,
+          current: newProfileData.emergencyFund?.current ?? profile?.emergencyFund?.current ?? 0,
+          history: newProfileData.emergencyFund?.history ?? profile?.emergencyFund?.history ?? []
+        }
       };
-      
+
       // Debug log before saving
       console.log('About to save profile:', JSON.stringify(updatedProfile, null, 2));
-      
+
       await FirestoreService.updateProfile(user.uid, updatedProfile);
       setProfile(updatedProfile);
       setOnboardingComplete(true);
@@ -240,17 +245,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateGoal = (goalId: string, updatedData: Partial<Omit<Goal, 'id'>>) => {
-    const newGoals = goals.map(g => 
-        g.id === goalId ? { ...g, ...updatedData, startDate: (g.timelineMonths && !g.startDate) ? formatISO(new Date()) : g.startDate } : g
+    const newGoals = goals.map(g =>
+      g.id === goalId ? { ...g, ...updatedData, startDate: (g.timelineMonths && !g.startDate) ? formatISO(new Date()) : g.startDate } : g
     );
     setGoals(newGoals);
     persistState(GOALS_KEY, newGoals);
     toast({
-        title: 'Goal Updated',
-        description: 'Your goal has been successfully updated.',
+      title: 'Goal Updated',
+      description: 'Your goal has been successfully updated.',
     });
   };
-  
+
   const updateTransaction = async (transactionId: string, updatedData: Partial<Omit<Transaction, 'id' | 'date'>>) => {
     if (!user) return;
 
@@ -326,7 +331,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         acc[day] += t.amount;
         return acc;
       }, {} as { [key: string]: number });
-    
+
     const today = startOfDay(new Date()).toISOString();
 
     let cumulativeSavings = 0;
@@ -335,7 +340,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const spending = spendingByDay[day];
         const saving = profile.dailySpendingLimit - spending;
         if (saving > 0) {
-            cumulativeSavings += saving;
+          cumulativeSavings += saving;
         }
       }
     }
@@ -345,18 +350,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const contributeToGoal = (goalId: string, amount: number) => {
     const newContribution: Contribution = {
-        amount,
-        date: new Date().toISOString(),
+      amount,
+      date: new Date().toISOString(),
     };
 
     const newGoals = goals.map(goal => {
       if (goal.id === goalId) {
         const newCurrentAmount = goal.currentAmount + amount;
-        return { 
-            ...goal, 
-            currentAmount: newCurrentAmount > goal.targetAmount ? goal.targetAmount : newCurrentAmount,
-            contributions: [newContribution, ...(goal.contributions || [])],
-         };
+        return {
+          ...goal,
+          currentAmount: newCurrentAmount > goal.targetAmount ? goal.targetAmount : newCurrentAmount,
+          contributions: [newContribution, ...(goal.contributions || [])],
+        };
       }
       return goal;
     });
@@ -372,7 +377,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const currentMonthKey = format(new Date(), 'yyyy-MM');
     return loggedPayments[expenseId]?.includes(currentMonthKey) || false;
   };
-  
+
   const getLoggedPaymentCount = (expenseId: string) => {
     return loggedPayments[expenseId]?.length || 0;
   };
@@ -381,7 +386,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const currentMonthKey = format(new Date(), 'yyyy-MM');
     const existingLogs = loggedPayments[expenseId] || [];
     const isLogged = existingLogs.includes(currentMonthKey);
-    
+
     let newLogs;
     if (isLogged) {
       newLogs = existingLogs.filter(month => month !== currentMonthKey);
@@ -395,7 +400,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...loggedPayments,
       [expenseId]: newLogs,
     };
-    
+
     setLoggedPayments(updatedLoggedPayments);
     persistState(LOGGED_PAYMENTS_KEY, updatedLoggedPayments);
   };
@@ -404,48 +409,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!profile) return;
 
     const newEntry: EmergencyFundEntry = {
-        id: Date.now().toString(),
-        amount,
-        date: new Date().toISOString(),
-        type: action === 'deposit' ? 'deposit' : 'withdrawal',
-        notes,
+      id: Date.now().toString(),
+      amount,
+      date: new Date().toISOString(),
+      type: action === 'deposit' ? 'deposit' : 'withdrawal',
+      notes,
     };
 
-    const newCurrent = action === 'deposit' 
-        ? profile.emergencyFund.current + amount 
-        : profile.emergencyFund.current - amount;
+    const newCurrent = action === 'deposit'
+      ? profile.emergencyFund.current + amount
+      : profile.emergencyFund.current - amount;
 
     const updatedProfile: UserProfile = {
-        ...profile,
-        emergencyFund: {
-            ...profile.emergencyFund,
-            current: newCurrent < 0 ? 0 : newCurrent,
-            history: [newEntry, ...profile.emergencyFund.history],
-        },
+      ...profile,
+      emergencyFund: {
+        ...profile.emergencyFund,
+        current: newCurrent < 0 ? 0 : newCurrent,
+        history: [newEntry, ...profile.emergencyFund.history],
+      },
     };
 
     setProfile(updatedProfile);
     persistState(PROFILE_KEY, updatedProfile);
     toast({
-        title: `Fund ${action === 'deposit' ? 'Added' : 'Withdrawn'}`,
-        description: `₹${amount.toFixed(2)} has been ${action === 'deposit' ? 'added to' : 'withdrawn from'} your emergency fund.`,
+      title: `Fund ${action === 'deposit' ? 'Added' : 'Withdrawn'}`,
+      description: `₹${amount.toFixed(2)} has been ${action === 'deposit' ? 'added to' : 'withdrawn from'} your emergency fund.`,
     });
   };
 
   const setEmergencyFundTarget = (target: number) => {
     if (!profile) return;
     const updatedProfile: UserProfile = {
-        ...profile,
-        emergencyFund: {
-            ...profile.emergencyFund,
-            target,
-        },
+      ...profile,
+      emergencyFund: {
+        ...profile.emergencyFund,
+        target,
+      },
     };
     setProfile(updatedProfile);
     persistState(PROFILE_KEY, updatedProfile);
-     toast({
-        title: `Target Updated`,
-        description: `Your new emergency fund target is ₹${target.toFixed(2)}.`,
+    toast({
+      title: `Target Updated`,
+      description: `Your new emergency fund target is ₹${target.toFixed(2)}.`,
     });
   };
 
@@ -455,41 +460,218 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await signOut(auth);
       router.push('/login');
     } catch (error) {
-       console.error("Logout failed", error);
-       toast({
+      console.error("Logout failed", error);
+      toast({
         variant: "destructive",
         title: "Logout Failed",
         description: "An error occurred while logging out. Please try again.",
-       })
+      })
     }
   };
 
   const deleteAccount = async () => {
     try {
-        localStorage.removeItem(PROFILE_KEY);
-        localStorage.removeItem(GOALS_KEY);
-        localStorage.removeItem(TRANSACTIONS_KEY);
-        localStorage.removeItem(LOGGED_PAYMENTS_KEY);
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(GOALS_KEY);
+      localStorage.removeItem(TRANSACTIONS_KEY);
+      localStorage.removeItem(LOGGED_PAYMENTS_KEY);
 
-        if (auth.currentUser) {
-          await signOut(auth);
-        }
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
 
-        toast({
-            title: "Account Deleted",
-            description: "Your account and all data have been successfully deleted.",
-        });
+      toast({
+        title: "Account Deleted",
+        description: "Your account and all data have been successfully deleted.",
+      });
 
-        router.push('/signup');
+      router.push('/signup');
     } catch (error) {
-        console.error("Account deletion failed", error);
-        toast({
-            variant: "destructive",
-            title: "Deletion Failed",
-            description: "An error occurred while deleting your account. Please try again.",
-        });
+      console.error("Account deletion failed", error);
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: "An error occurred while deleting your account. Please try again.",
+      });
     }
   };
+
+  // Gamification Functions
+  const getCurrentStreak = useCallback(() => {
+    if (!profile) return 0;
+    if (transactions.length === 0) return 0; // No history, no streak
+
+    const dailyLimit = profile.dailySpendingLimit;
+    const today = startOfDay(new Date());
+
+    // 1. Check TODAY first. If over budget today, streak is broken immediately.
+    const todaysSpending = transactions
+      .filter(t => isSameDay(parseISO(t.date), today))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    if (todaysSpending > dailyLimit) return 0;
+
+    // 2. Find the start date (date of first transaction)
+    const sortedDates = transactions
+      .map(t => startOfDay(parseISO(t.date)).getTime())
+      .sort((a, b) => a - b);
+
+    if (sortedDates.length === 0) return 0;
+    const startDate = new Date(sortedDates[0]);
+
+    // 3. Count backwards from YESTERDAY
+    let streak = 0;
+    let checkDate = subDays(today, 1);
+
+    // Group transactions by day for efficiency
+    const spendingByDay: Record<string, number> = {};
+    transactions.forEach(t => {
+      const day = startOfDay(parseISO(t.date)).toISOString();
+      spendingByDay[day] = (spendingByDay[day] || 0) + t.amount;
+    });
+
+    // Max 365 days or until start date
+    for (let i = 0; i < 365; i++) {
+      // Stop if we go before the first transaction
+      if (checkDate < startDate) break;
+
+      const dayKey = checkDate.toISOString();
+      const daySpending = spendingByDay[dayKey] || 0;
+
+      if (daySpending <= dailyLimit) {
+        streak++;
+        checkDate = subDays(checkDate, 1);
+      } else {
+        break; // Streak broken
+      }
+    }
+
+    // Optional: Add 1 for today if it's "so far so good"?
+    // Standard practice: "Current Streak" usually implies completed days OR active streak.
+    // If we count today, it motivates. If we don't, it feels lagging.
+    // Let's count today as +1 if they are currently under budget.
+    if (todaysSpending <= dailyLimit) {
+      streak++;
+    }
+
+    return streak;
+  }, [profile, transactions]);
+
+  const getEarnedBadges = useCallback((): Badge[] => {
+    if (!profile?.gamification?.earnedBadges) return [];
+    return profile.gamification.earnedBadges
+      .map(id => BADGES.find(b => b.id === id))
+      .filter((b): b is Badge => b !== undefined);
+  }, [profile]);
+
+  const awardBadge = async (badgeId: string) => {
+    if (!profile || !user) return;
+
+    const currentBadges = profile.gamification?.earnedBadges || [];
+    if (currentBadges.includes(badgeId)) return; // Already earned
+
+    const badge = BADGES.find(b => b.id === badgeId);
+    if (!badge) return;
+
+    const updatedGamification = {
+      ...profile.gamification,
+      earnedBadges: [...currentBadges, badgeId],
+      currentStreak: getCurrentStreak(),
+      longestStreak: Math.max(profile.gamification?.longestStreak || 0, getCurrentStreak()),
+      lastStreakDate: new Date().toISOString(),
+    };
+
+    const updatedProfile: UserProfile = {
+      ...profile,
+      gamification: updatedGamification,
+    };
+
+    try {
+      await FirestoreService.updateProfile(user.uid, updatedProfile);
+      setProfile(updatedProfile);
+
+      toast({
+        title: `🏆 Badge Earned!`,
+        description: `${badge.emoji} ${badge.name} - ${badge.description}`,
+      });
+    } catch (error) {
+      console.error("Failed to award badge:", error);
+    }
+  };
+
+  // Auto-check and award eligible badges
+  const checkAndAwardBadges = useCallback(async () => {
+    if (!profile || !user) return;
+
+    const earnedBadges = profile.gamification?.earnedBadges || [];
+    const streak = getCurrentStreak();
+
+    // Calculate total daily savings (cumulative)
+    const totalSaved = getCumulativeDailySavings();
+
+    // Check for completed goals
+    const hasCompletedGoal = goals.some(g => g.currentAmount >= g.targetAmount);
+
+    // Check for zero spend days
+    const today = startOfDay(new Date());
+    const todaysSpending = getTodaysSpending();
+    const hasZeroSpendDay = transactions.some(t => {
+      const txDate = startOfDay(parseISO(t.date));
+      const daySpending = transactions
+        .filter(tx => isSameDay(parseISO(tx.date), txDate))
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      return daySpending === 0;
+    }) || todaysSpending === 0;
+
+    // Count consecutive zero spend days
+    let consecutiveZeroSpendDays = 0;
+    let checkDate = subDays(today, 1);
+    for (let i = 0; i < 30; i++) {
+      const daySpending = transactions
+        .filter(t => isSameDay(parseISO(t.date), checkDate))
+        .reduce((sum, t) => sum + t.amount, 0);
+      if (daySpending === 0) {
+        consecutiveZeroSpendDays++;
+        checkDate = subDays(checkDate, 1);
+      } else {
+        break;
+      }
+    }
+
+    // Check weekend under budget (simplified)
+    const hasWeekendUnderBudget = streak >= 2;
+
+    // Build context
+    const context: BadgeCheckContext = {
+      currentStreak: streak,
+      longestStreak: profile.gamification?.longestStreak || 0,
+      totalSaved,
+      monthlyIncome: profile.income,
+      monthlySavings: profile.monthlySavings,
+      emergencyFund: profile.emergencyFund?.current || 0,
+      monthlyExpenses: profile.monthlyNeeds + profile.monthlyWants,
+      hasCompletedGoal,
+      hasZeroSpendDay,
+      consecutiveZeroSpendDays,
+      hasWeekendUnderBudget,
+      earnedBadges,
+    };
+
+    // Check eligibility
+    const newBadges = checkBadgeEligibility(context);
+
+    // Award new badges
+    for (const badgeId of newBadges) {
+      await awardBadge(badgeId);
+    }
+  }, [profile, user, transactions, goals, getCurrentStreak, getCumulativeDailySavings, getTodaysSpending]);
+
+  // Auto-check badges when transactions change
+  useEffect(() => {
+    if (profile && transactions.length > 0) {
+      checkAndAwardBadges();
+    }
+  }, [transactions.length, profile?.gamification?.earnedBadges?.length]);
 
   const value: AppContextType = {
     user,
@@ -515,6 +697,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     getLoggedPaymentCount,
     updateEmergencyFund,
     setEmergencyFundTarget,
+    // Gamification
+    getCurrentStreak,
+    getEarnedBadges,
+    awardBadge,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

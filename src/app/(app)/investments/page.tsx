@@ -176,22 +176,20 @@ export default function InvestmentsPage() {
         </TabsContent>
 
         <TabsContent value="tax" className="space-y-4">
-          <TaxOptimizer investments={investments} profile={profile} />
+          <TaxOptimizer investments={investments} profile={profile ?? undefined} />
         </TabsContent>
 
         <TabsContent value="recommendations" className="space-y-4">
-          <InvestmentRecommendations profile={profile} investments={investments} />
+          <InvestmentRecommendations profile={profile ?? undefined} investments={investments} />
         </TabsContent>
       </Tabs>
 
       {/* Investment Dialog Modal */}
-      {showInvestmentDialog && (
-        <InvestmentDialog
-          open={showInvestmentDialog}
-          onOpenChange={setShowInvestmentDialog}
-          onSave={handleAddInvestment}
-        />
-      )}
+      <InvestmentDialog
+        open={showInvestmentDialog}
+        onOpenChange={setShowInvestmentDialog}
+        onSave={handleAddInvestment}
+      />
 
       {/* Empty State */}
       {investments.length === 0 && (

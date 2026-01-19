@@ -9,7 +9,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const InvestmentAdvisorInputSchema = z.object({
-  role: z.enum(['Student', 'Professional', 'Homemaker']).describe('User role'),
+  role: z.enum(['Student', 'Professional', 'Housewife']).describe('User role'),
   income: z.number().describe('Monthly income'),
   savings: z.number().describe('Available savings'),
   currentInvestments: z.array(z.object({

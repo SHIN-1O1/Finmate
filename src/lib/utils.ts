@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
  * Get role-based budget allocation percentages
  * - Student: 60% Needs, 30% Wants, 10% Savings (low income, unstable)
  * - Professional: 50% Needs, 30% Wants, 20% Savings (standard earning)
- * - Homemaker: 55% Needs, 25% Wants, 20% Savings (household-heavy needs)
+ * - Housewife: 55% Needs, 25% Wants, 20% Savings (household-heavy needs)
  */
 export function getRoleBudgetSplit(role: UserRole): { needsPercent: number; wantsPercent: number; savingsPercent: number } {
   switch (role) {
@@ -18,7 +18,7 @@ export function getRoleBudgetSplit(role: UserRole): { needsPercent: number; want
       return { needsPercent: 0.60, wantsPercent: 0.30, savingsPercent: 0.10 };
     case 'Professional':
       return { needsPercent: 0.50, wantsPercent: 0.30, savingsPercent: 0.20 };
-    case 'Homemaker':
+    case 'Housewife':
       return { needsPercent: 0.55, wantsPercent: 0.25, savingsPercent: 0.20 };
     default:
       // Fallback to Professional split
@@ -79,7 +79,7 @@ export function calculateRoleBudget(
  * Different roles have different success criteria:
  * - Student: Minimize daily overspend (unstable income, focus on discipline)
  * - Professional: Maximize savings rate (stable income, focus on growth)
- * - Homemaker: Maximize budget stability (household consistency, focus on planning)
+ * - Housewife: Maximize budget stability (household consistency, focus on planning)
  */
 export function calculateRoleSuccessMetrics(
   role: UserRole,
@@ -136,7 +136,7 @@ export function calculateRoleSuccessMetrics(
       };
     }
 
-    case 'Homemaker': {
+    case 'Housewife': {
       // Success = Budget stability (lower variance is better)
       const stabilityScore = monthlyVariance > 0 
         ? Math.max(0, 100 - (monthlyVariance / income) * 100)

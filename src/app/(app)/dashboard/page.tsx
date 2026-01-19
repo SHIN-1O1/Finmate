@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -10,6 +9,8 @@ import Link from 'next/link';
 import { useApp } from '@/hooks/use-app';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { SpendingForecast } from '@/components/spending-forecast';
+import { SmartDailyBriefing } from '@/components/ui/smart-daily-briefing';
+import { RecentAchievements } from '@/components/ui/recent-achievements';
 
 function StatCard({ title, value, icon, change, changeType }: { title: string, value: string, icon: React.ReactNode, change?: string, changeType?: 'increase' | 'decrease' }) {
   return (
@@ -36,35 +37,18 @@ export default function DashboardPage() {
 
   const totalGoalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
   const totalGoalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
-  
+
   const todaysSpending = getTodaysSpending();
-  
+
   const overallSpending = transactions.reduce((sum, t) => sum + t.amount, 0);
   const income = profile?.income || 0;
   const spendingVsIncome = income > 0 ? `${((overallSpending / income) * 100).toFixed(0)}% of income` : '';
 
-  // Group transactions by date and sum daily spending
-  const dailySpendingMap = React.useMemo(() => {
-    const spendingByDate = new Map<string, number>();
-    
-    transactions.forEach(t => {
-      const dateKey = new Date(t.date).toISOString().split('T')[0]; // YYYY-MM-DD format
-      const current = spendingByDate.get(dateKey) || 0;
-      spendingByDate.set(dateKey, current + t.amount);
-    });
-    
-    return spendingByDate;
-  }, [transactions]);
-
-  // Get last 7 days of aggregated spending for chart
-  const chartData = React.useMemo(() => {
-    const sortedDates = Array.from(dailySpendingMap.keys()).sort().reverse().slice(0, 7);
-    
-    return sortedDates.reverse().map(dateKey => ({
-      date: new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-      amount: dailySpendingMap.get(dateKey) || 0,
-    }));
-  }, [dailySpendingMap]);
+  const recentTransactions = transactions.slice(0, 7).reverse();
+  const chartData = recentTransactions.map(t => ({
+    date: new Date(t.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    amount: t.amount,
+  }));
 
   const {
     monthlyNeeds,
@@ -82,9 +66,9 @@ export default function DashboardPage() {
         goalContributions: 0,
       };
     }
-    
+
     const totalGoalContributions = getTotalGoalContributions();
-  
+
     return {
       monthlyNeeds: profile.monthlyNeeds,
       monthlyWants: profile.monthlyWants,
@@ -93,7 +77,7 @@ export default function DashboardPage() {
       goalContributions: totalGoalContributions,
     };
   }, [profile, getTotalGoalContributions]);
-  
+
   const todaysSavings = dailySpendingLimit - todaysSpending;
   const cumulativeSavings = getCumulativeDailySavings();
 
@@ -118,14 +102,19 @@ export default function DashboardPage() {
       <h2 className="text-2xl font-semibold mb-6">
         {profile?.name ? `Hello, ${profile.name.split(' ')[0]}!` : 'Welcome back!'}
       </h2>
+
+      <SmartDailyBriefing />
+
+      <RecentAchievements />
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Monthly Income" 
+        <StatCard
+          title="Monthly Income"
           value={`₹${income.toFixed(2)}`}
           icon={<IndianRupee className="h-4 w-4 text-muted-foreground" />}
         />
-        <StatCard 
-          title="Overall Spending" 
+        <StatCard
+          title="Overall Spending"
           value={`₹${overallSpending.toFixed(2)}`}
           icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
           change={spendingVsIncome}
@@ -138,8 +127,8 @@ export default function DashboardPage() {
           change={todaysSavings >= 0 ? `+ ₹${todaysSavings.toFixed(2)} today` : `- ₹${Math.abs(todaysSavings).toFixed(2)} today`}
           changeType={todaysSavings >= 0 ? "increase" : "decrease"}
         />
-        <StatCard 
-          title="Total Goal Savings" 
+        <StatCard
+          title="Total Goal Savings"
           value={`₹${totalGoalSaved.toFixed(2)}`}
           icon={<Target className="h-4 w-4 text-muted-foreground" />}
         />
@@ -147,65 +136,65 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
-            <CardHeader>
+          <CardHeader>
             <CardTitle>Financial Breakdown</CardTitle>
             <CardDescription>Your monthly budget allocated across Needs, Wants, and Savings.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
-                    <Wallet className="h-6 w-6 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Needs</p>
-                    <p className="text-lg font-bold">₹{monthlyNeeds.toFixed(2)}</p>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
+                <Wallet className="h-6 w-6 text-primary mb-2" />
+                <p className="text-sm text-muted-foreground">Needs</p>
+                <p className="text-lg font-bold">₹{monthlyNeeds.toFixed(2)}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
+                <ShoppingCart className="h-6 w-6 text-accent mb-2" />
+                <p className="text-sm text-muted-foreground">Wants</p>
+                <p className="text-lg font-bold">₹{monthlyWants.toFixed(2)}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
+                <PiggyBank className="h-6 w-6 text-green-500 mb-2" />
+                <p className="text-sm text-muted-foreground">Savings</p>
+                <p className="text-lg font-bold">₹{monthlySavings.toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="space-y-4 pt-4 border-t">
+              <h4 className="text-sm font-medium">Monthly Savings Allocation</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Target className="h-4 w-4" /> Committed to Goals</span>
+                  <span className="font-semibold">₹{goalContributions.toFixed(2)}</span>
                 </div>
-                <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
-                    <ShoppingCart className="h-6 w-6 text-accent mb-2" />
-                    <p className="text-sm text-muted-foreground">Wants</p>
-                    <p className="text-lg font-bold">₹{monthlyWants.toFixed(2)}</p>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><ShieldCheck className="h-4 w-4" /> Available for Emergency Fund</span>
+                  <span className="font-semibold">₹{Math.max(0, monthlySavings - goalContributions).toFixed(2)}</span>
                 </div>
-                <div className="p-4 rounded-lg bg-muted/50 flex flex-col justify-center items-center">
-                    <PiggyBank className="h-6 w-6 text-green-500 mb-2" />
-                    <p className="text-sm text-muted-foreground">Savings</p>
-                    <p className="text-lg font-bold">₹{monthlySavings.toFixed(2)}</p>
+                <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
+                  <span>Total Monthly Savings</span>
+                  <span>₹{monthlySavings.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="text-sm font-medium">Monthly Savings Allocation</h4>
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="flex items-center gap-2 text-muted-foreground"><Target className="h-4 w-4" /> Committed to Goals</span>
-                        <span className="font-semibold">₹{goalContributions.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="flex items-center gap-2 text-muted-foreground"><ShieldCheck className="h-4 w-4" /> Available for Emergency Fund</span>
-                        <span className="font-semibold">₹{Math.max(0, monthlySavings - goalContributions).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
-                        <span>Total Monthly Savings</span>
-                        <span>₹{monthlySavings.toFixed(2)}</span>
-                    </div>
-                </div>
-              </div>
-            </CardContent>
+            </div>
+          </CardContent>
         </Card>
-         <Link href="/emergency-fund" className="block">
+        <Link href="/emergency-fund" className="block">
           <Card className="h-full hover:border-primary/50 transition-colors flex flex-col">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5 text-primary" />
-                    Emergency Fund
-                </CardTitle>
-                 <CardDescription>
-                    Your safety net for unexpected events. Current balance:
-                </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-primary" />
+                Emergency Fund
+              </CardTitle>
+              <CardDescription>
+                Your safety net for unexpected events. Current balance:
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center items-center">
-                 <div className="text-4xl font-bold">
-                    ₹{(emergencyFund?.current || 0).toFixed(2)}
-                 </div>
+              <div className="text-4xl font-bold">
+                ₹{(emergencyFund?.current || 0).toFixed(2)}
+              </div>
             </CardContent>
             <CardFooter>
-                 <Button className="w-full" variant="secondary">Manage Fund</Button>
+              <Button className="w-full" variant="secondary">Manage Fund</Button>
             </CardFooter>
           </Card>
         </Link>
@@ -220,8 +209,8 @@ export default function DashboardPage() {
           <CardContent className="p-0">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData} margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false}/>
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`}/>
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
@@ -236,7 +225,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        
+
         <Card className="h-full">
           <CardHeader>
             <CardTitle>Active Goals</CardTitle>
