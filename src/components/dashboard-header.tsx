@@ -17,6 +17,7 @@ const pageTitles: { [key: string]: string } = {
   '/emergency-fund': 'Emergency Fund',
   '/onboarding': 'Welcome to FinMate',
   '/settings': 'Profile Settings',
+  '/help': 'Help & User Guide',
 };
 
 export function DashboardHeader() {

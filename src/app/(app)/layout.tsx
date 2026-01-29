@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Trophy,
   TrendingUp,
+  HelpCircle,
 } from 'lucide-react';
 import { useApp } from '@/hooks/use-app';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarInset } from '@/components/ui/sidebar';
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/emergency-fund', icon: <ShieldAlert />, label: 'Emergency Fund' },
   { href: '/badges', icon: <Trophy />, label: 'Badges' },
   { href: '/investments', icon: <TrendingUp />, label: 'Investments' },
+  { href: '/help', icon: <HelpCircle />, label: 'Help & Guide' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

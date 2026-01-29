@@ -280,6 +280,65 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* TEAM SECTION */}
+        <section className="relative z-10 bg-transparent py-20">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto mb-16 max-w-3xl text-center">
+              <h2 className="text-4xl font-bold tracking-tight text-white md:text-5xl">Meet the Team</h2>
+              <p className="mt-6 text-lg text-cyan-100/70">
+                Passionate innovators dedicated to revolutionizing financial technology for everyone.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+              {[
+                { name: "Team Member 1", role: "Full Stack Developer" },
+                { name: "Team Member 2", role: "Product Manager" },
+                { name: "Team Member 3", role: "Backend Engineer" },
+                { name: "Team Member 4", role: "UI/UX Designer" },
+              ].map((member, i) => (
+                <motion.div
+                  key={member.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ delay: i * 0.1, duration: 0.6 }}
+                >
+                  <div className="group cursor-pointer">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-0 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/20">
+                      {/* Image Container */}
+                      <div className="relative h-96 w-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                        <Image
+                          src={`/team${i + 1}.jpg`}
+                          alt={member.name}
+                          width={400}
+                          height={500}
+                          className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                        />
+                        {/* Overlay gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                      </div>
+
+                      {/* Content Container */}
+                      <div className="relative px-6 py-6 text-center">
+                        <h3 className="text-xl font-bold text-white transition-colors group-hover:text-cyan-300">
+                          {member.name}
+                        </h3>
+                        <p className="mt-2 text-sm font-medium text-cyan-200/80 transition-colors group-hover:text-cyan-200">
+                          {member.role}
+                        </p>
+                      </div>
+
+                      {/* Accent line */}
+                      <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}

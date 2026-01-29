@@ -1,0 +1,13 @@
+{
+  "java.import.gradle.enabled": true,
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.project.sourcePaths": [],
+  "java.project.referencedLibraries": [],
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.import.gradle.home": null,
+  "java.import.gradle.wrapper.enabled": true,
+  "java.project.resourceFilters": [
+    "node_modules",
+    ".git"
+  ]
+}
