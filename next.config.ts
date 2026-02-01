@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  output: 'export',
+  output: process.env.IS_MOBILE === 'true' ? 'export' : undefined,
   images: {
     unoptimized: true,
     remotePatterns: [

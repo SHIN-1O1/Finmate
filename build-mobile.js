@@ -86,7 +86,7 @@ async function main() {
 
         // 3. Run Build
         console.log('--- Phase 3: Running Build ---');
-        execSync('npm run build', { stdio: 'inherit' });
+        execSync('cross-env IS_MOBILE=true npm run build', { stdio: 'inherit' });
         console.log('Build completed successfully.');
 
     } catch (error) {
