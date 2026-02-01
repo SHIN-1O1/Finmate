@@ -9,6 +9,7 @@ import { FirestoreService } from '@/lib/firestore';
 import { useRouter } from 'next/navigation';
 import { format, formatISO, startOfDay, parseISO, subDays, isAfter, isSameDay } from 'date-fns';
 import { BADGES, Badge, DEFAULT_GAMIFICATION_STATE, checkBadgeEligibility, BadgeCheckContext } from '@/lib/gamification';
+import { calculateRoleBudget } from '@/lib/utils';
 
 interface AppContextType {
   user: User | null | undefined;
@@ -19,7 +20,7 @@ interface AppContextType {
   onboardingComplete: boolean;
   updateProfile: (profile: Partial<Omit<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'>>) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'currentAmount' | 'contributions'>) => void;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date'> & { date?: string }) => void;
   updateGoal: (goalId: string, updatedGoal: Partial<Omit<Goal, 'id'>>) => void;
   getTodaysSpending: () => number;
   logout: () => void;
@@ -38,6 +39,11 @@ interface AppContextType {
   getCurrentStreak: () => number;
   getEarnedBadges: () => Badge[];
   awardBadge: (badgeId: string) => void;
+  deleteGoal: (goalId: string) => Promise<void>;
+  updateInvestments: (investments: import('@/lib/investment-types').Investment[]) => Promise<void>;
+  deleteInvestment: (investmentId: string) => Promise<void>;
+  updateSIPPlans: (plans: import('@/lib/investment-types').SIPPlan[]) => Promise<void>;
+  deleteSIPPlan: (planId: string) => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -48,21 +54,7 @@ const GOALS_KEY = `${KART_I_QUO_PREFIX}goals`;
 const TRANSACTIONS_KEY = `${KART_I_QUO_PREFIX}transactions`;
 const LOGGED_PAYMENTS_KEY = `${KART_I_QUO_PREFIX}logged-payments`;
 
-const calculateBudget = (income: number, fixedExpenses: { amount: number }[]): Pick<UserProfile, 'monthlyNeeds' | 'monthlyWants' | 'monthlySavings' | 'dailySpendingLimit'> => {
-  const needs = fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
-  // Apply 50/30/20 rule based on total income
-  const wants = income * 0.3;
-  const savings = income * 0.2;
-  const daily = wants > 0 ? wants / 30 : 0;
-
-  return {
-    monthlyNeeds: needs,
-    monthlyWants: wants,
-    monthlySavings: savings,
-    dailySpendingLimit: daily,
-  };
-};
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
@@ -84,7 +76,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // Load profile from Firestore
           const userProfile = await FirestoreService.getProfile(currentUser.uid);
           if (userProfile) {
-            const budget = calculateBudget(userProfile.income, userProfile.fixedExpenses);
+            const fixedExpensesTotal = userProfile.fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+            const budget = calculateRoleBudget(userProfile.income, fixedExpensesTotal, userProfile.role);
             const updatedProfile = {
               ...userProfile,
               ...budget,
@@ -105,9 +98,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const userTransactions = await FirestoreService.getTransactions(currentUser.uid);
           setTransactions(userTransactions || []);
 
-          // Keep logged payments in localStorage for performance
-          const storedLoggedPayments = localStorage.getItem(LOGGED_PAYMENTS_KEY);
-          setLoggedPayments(storedLoggedPayments ? JSON.parse(storedLoggedPayments) : {});
+          // Load logged payments from Firestore
+          const firestoreLoggedPayments = await FirestoreService.getLoggedPayments(currentUser.uid);
+          if (firestoreLoggedPayments) {
+            setLoggedPayments(firestoreLoggedPayments);
+          } else {
+            // Migration/Fallback: check localStorage
+            const storedLoggedPayments = localStorage.getItem(LOGGED_PAYMENTS_KEY);
+            const initialPayments = storedLoggedPayments ? JSON.parse(storedLoggedPayments) : {};
+            setLoggedPayments(initialPayments);
+            if (Object.keys(initialPayments).length > 0) {
+              await FirestoreService.saveLoggedPayments(currentUser.uid, initialPayments);
+            }
+          }
 
         } catch (error) {
           console.error("Failed to load data from localStorage", error);
@@ -141,6 +144,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Prepare base profile data
       const income = newProfileData.income ?? profile?.income ?? 0;
+      const role = newProfileData.role || profile?.role || '';
       const fixedExpenses = newProfileData.fixedExpenses?.map(exp => ({
         id: exp.id || crypto.randomUUID(),
         name: exp.name || '',
@@ -150,11 +154,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         startDate: (exp.timelineMonths && !exp.startDate) ? formatISO(new Date()) : exp.startDate || formatISO(new Date())
       })) ?? profile?.fixedExpenses ?? [];
 
-      const budget = calculateBudget(income, fixedExpenses);
+      const fixedExpensesTotal = fixedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+      const budget = calculateRoleBudget(income, fixedExpensesTotal, role);
 
       // Create a complete profile object with all required fields
       const updatedProfile: UserProfile = {
-        role: newProfileData.role || profile?.role || '',
+        ...profile,
+        role,
         name: newProfileData.name || profile?.name || '',
         income,
         fixedExpenses,
@@ -163,7 +169,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           target: newProfileData.emergencyFund?.target ?? profile?.emergencyFund?.target ?? 0,
           current: newProfileData.emergencyFund?.current ?? profile?.emergencyFund?.current ?? 0,
           history: newProfileData.emergencyFund?.history ?? profile?.emergencyFund?.history ?? []
-        }
+        },
+        gamification: profile?.gamification || DEFAULT_GAMIFICATION_STATE,
+        investments: profile?.investments || [],
+        sipPlans: profile?.sipPlans || [],
       };
 
       // Debug log before saving
@@ -217,14 +226,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addTransaction = async (transactionData: Omit<Transaction, 'id' | 'date'>) => {
+  const addTransaction = async (transactionData: Omit<Transaction, 'id' | 'date'> & { date?: string }) => {
     if (!user) return;
 
     try {
       const newTransaction: Transaction = {
         ...transactionData,
         id: crypto.randomUUID(),
-        date: formatISO(new Date()),
+        date: (transactionData as any).date || formatISO(new Date()),
       };
 
       await FirestoreService.saveTransaction(user.uid, newTransaction);
@@ -403,6 +412,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     setLoggedPayments(updatedLoggedPayments);
     persistState(LOGGED_PAYMENTS_KEY, updatedLoggedPayments);
+
+    if (user) {
+      FirestoreService.saveLoggedPayments(user.uid, updatedLoggedPayments).catch(err => {
+        console.error("Failed to sync logged payments:", err);
+      });
+    }
   };
 
   const updateEmergencyFund = (action: 'deposit' | 'withdraw', amount: number, notes?: string) => {
@@ -431,6 +446,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     setProfile(updatedProfile);
     persistState(PROFILE_KEY, updatedProfile);
+
+    if (user) {
+      FirestoreService.updateProfile(user.uid, updatedProfile).catch(err => {
+        console.error("Failed to sync emergency fund:", err);
+      });
+    }
+
     toast({
       title: `Fund ${action === 'deposit' ? 'Added' : 'Withdrawn'}`,
       description: `₹${amount.toFixed(2)} has been ${action === 'deposit' ? 'added to' : 'withdrawn from'} your emergency fund.`,
@@ -448,10 +470,60 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setProfile(updatedProfile);
     persistState(PROFILE_KEY, updatedProfile);
+
+    if (user) {
+      FirestoreService.updateProfile(user.uid, updatedProfile).catch(err => {
+        console.error("Failed to sync emergency fund target:", err);
+      });
+    }
+
     toast({
       title: `Target Updated`,
       description: `Your new emergency fund target is ₹${target.toFixed(2)}.`,
     });
+  };
+
+  const deleteGoal = async (goalId: string) => {
+    if (!user) return;
+    try {
+      await FirestoreService.deleteGoal(user.uid, goalId);
+      const updatedGoals = goals.filter(g => g.id !== goalId);
+      setGoals(updatedGoals);
+      persistState(GOALS_KEY, updatedGoals);
+      toast({ title: 'Goal deleted successfully.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete goal.' });
+    }
+  };
+
+  const updateInvestments = async (newInvestments: import('@/lib/investment-types').Investment[]) => {
+    if (!user || !profile) return;
+    const updatedProfile = { ...profile, investments: newInvestments };
+    setProfile(updatedProfile);
+    persistState(PROFILE_KEY, updatedProfile);
+    await FirestoreService.updateProfile(user.uid, updatedProfile);
+  };
+
+  const deleteInvestment = async (investmentId: string) => {
+    if (!user || !profile?.investments) return;
+    const updatedInvestmentsList = profile.investments.filter(i => i.id !== investmentId);
+    await updateInvestments(updatedInvestmentsList);
+    toast({ title: 'Investment removed.' });
+  };
+
+  const updateSIPPlans = async (newPlans: import('@/lib/investment-types').SIPPlan[]) => {
+    if (!user || !profile) return;
+    const updatedProfile = { ...profile, sipPlans: newPlans };
+    setProfile(updatedProfile);
+    persistState(PROFILE_KEY, updatedProfile);
+    await FirestoreService.updateProfile(user.uid, updatedProfile);
+  };
+
+  const deleteSIPPlan = async (planId: string) => {
+    if (!user || !profile?.sipPlans) return;
+    const updatedPlans = profile.sipPlans.filter(p => p.id !== planId);
+    await updateSIPPlans(updatedPlans);
+    toast({ title: 'SIP Plan removed.' });
   };
 
 
@@ -477,6 +549,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(LOGGED_PAYMENTS_KEY);
 
       if (auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        await FirestoreService.deleteUserData(userId);
         await signOut(auth);
       }
 
@@ -701,6 +775,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     getCurrentStreak,
     getEarnedBadges,
     awardBadge,
+    deleteGoal,
+    updateInvestments,
+    deleteInvestment,
+    updateSIPPlans,
+    deleteSIPPlan,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

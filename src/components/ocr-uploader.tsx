@@ -64,17 +64,19 @@ export default function OcrUploader({ onResult, targetForm = 'checkin' }: OcrUpl
       try {
         const arrayBuffer = await file.arrayBuffer();
         const b64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        fetch('/api/ocr/save', {
+        const { getApiUrl } = await import('@/lib/utils'); // Dynamically import to avoid circular deps if any (safe here)
+        fetch(getApiUrl('api/ocr/save'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: b64, mimeType: file.type }),
-        }).catch(() => {});
+        }).catch(() => { });
       } catch (e) {
         // ignore upload errors
       }
 
       // send extracted text to parse-fields (same flow as MicRecorder)
-      const parseRes = await fetch('/api/parse-fields', {
+      const { getApiUrl } = await import('@/lib/utils');
+      const parseRes = await fetch(getApiUrl('api/parse-fields'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, targetForm }),

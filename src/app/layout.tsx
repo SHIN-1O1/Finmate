@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { Nunito } from 'next/font/google';
@@ -15,6 +15,14 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: 'FinMate',
   description: 'AI-powered smart budget tracker to master your finances.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

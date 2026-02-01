@@ -31,7 +31,8 @@ export function MicRecorder({ onResult, targetForm = 'onboarding', imageSrc, ima
         const base64 = bufferToBase64(arrayBuffer);
 
         // send to speech-to-text
-        const sttRes = await fetch('/api/speech-to-text', {
+        const { getApiUrl } = await import('@/lib/utils');
+        const sttRes = await fetch(getApiUrl('api/speech-to-text'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ audio: base64, mimeType: 'audio/webm' }),
@@ -40,7 +41,7 @@ export function MicRecorder({ onResult, targetForm = 'onboarding', imageSrc, ima
         setTranscript(sttJson?.text ?? '');
 
         // parse fields
-        const parseRes = await fetch('/api/parse-fields', {
+        const parseRes = await fetch(getApiUrl('api/parse-fields'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: sttJson?.text ?? '', targetForm }),
@@ -82,13 +83,13 @@ export function MicRecorder({ onResult, targetForm = 'onboarding', imageSrc, ima
         className={`flex items-center justify-center w-12 h-12 rounded-full shadow-sm border ${recording ? 'bg-red-500 text-white border-red-600' : 'bg-white text-gray-700'}`}
       >
         {/** Use provided imageSrc, otherwise fall back to bundled image.png. If not present show SVG. */}
-          {(imageSrc || micImg) ? (
-            // If imageSrc is provided as string, use regular img. If using imported static image, use next/image for optimization.
-            typeof (imageSrc) === 'string' && imageSrc ? (
-              <img src={imageSrc} alt={imageAlt || 'mic'} className="w-6 h-6 object-contain" />
-            ) : (
-              <Image src={micImg} alt={imageAlt || 'mic'} width={40} height={40} className="object-contain" />
-            )
+        {(imageSrc || micImg) ? (
+          // If imageSrc is provided as string, use regular img. If using imported static image, use next/image for optimization.
+          typeof (imageSrc) === 'string' && imageSrc ? (
+            <img src={imageSrc} alt={imageAlt || 'mic'} className="w-6 h-6 object-contain" />
+          ) : (
+            <Image src={micImg} alt={imageAlt || 'mic'} width={40} height={40} className="object-contain" />
+          )
         ) : recording ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" />

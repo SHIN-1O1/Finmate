@@ -20,6 +20,8 @@ export interface UserProfile {
     longestStreak: number;
     lastStreakDate: string | null;
   };
+  investments?: import('./investment-types').Investment[];
+  sipPlans?: import('./investment-types').SIPPlan[];
 }
 
 export interface FixedExpense {

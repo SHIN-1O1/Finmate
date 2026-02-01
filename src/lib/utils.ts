@@ -6,6 +6,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const API_BASE_URL = 'https://kart-i-quo-fujv.onrender.com';
+
+export function getApiUrl(path: string): string {
+  // If running in a browser environment without a relative API (e.g. mobile static export), use the full URL.
+  // We can detect this if the window.location.protocol is file: (Capacitor default sometimes) or simply use the env/const.
+  // For this build, we want mobile usage to always point to the server.
+  // However, local web dev (localhost:3000) should still use relative paths if the proxy is set up or api is local.
+  // Since we are moving the API folder out during mobile build, relative paths WON'T work for mobile build anyway.
+
+  // Simple logic: If we are in a static export (Capacitor), we need the absolute URL.
+  // For now, let's prefix it if it starts with '/api'.
+
+  if (path.startsWith('/')) {
+    path = path.substring(1);
+  }
+
+  return `${API_BASE_URL}/${path}`;
+}
+
 /**
  * Get role-based budget allocation percentages
  * - Student: 60% Needs, 30% Wants, 10% Savings (low income, unstable)
@@ -34,9 +53,9 @@ export function calculateRoleBudget(
   income: number,
   fixedExpensesTotal: number,
   role: UserRole
-): { monthlyNeeds: number; monthlyWants: number; monthlySavings: number; dailyLimit: number } {
+): { monthlyNeeds: number; monthlyWants: number; monthlySavings: number; dailySpendingLimit: number } {
   if (income <= 0) {
-    return { monthlyNeeds: 0, monthlyWants: 0, monthlySavings: 0, dailyLimit: 0 };
+    return { monthlyNeeds: 0, monthlyWants: 0, monthlySavings: 0, dailySpendingLimit: 0 };
   }
 
   const { needsPercent, wantsPercent, savingsPercent } = getRoleBudgetSplit(role);
@@ -63,15 +82,15 @@ export function calculateRoleBudget(
       const totalFlexPercent = wantsPercent + savingsPercent;
       const wantsRatio = wantsPercent / totalFlexPercent;
       const savingsRatio = savingsPercent / totalFlexPercent;
-      
+
       wants = disposable * wantsRatio;
       savings = disposable * savingsRatio;
     }
   }
 
-  const dailyLimit = wants > 0 ? wants / 30 : 0;
+  const dailySpendingLimit = wants > 0 ? wants / 30 : 0;
 
-  return { monthlyNeeds: needs, monthlyWants: wants, monthlySavings: savings, dailyLimit };
+  return { monthlyNeeds: needs, monthlyWants: wants, monthlySavings: savings, dailySpendingLimit };
 }
 
 /**
@@ -100,20 +119,20 @@ export function calculateRoleSuccessMetrics(
       // Success = Reduced daily overspend (lower is better)
       const dailyOverspend = Math.max(0, averageDailySpending - dailySpendingLimit);
       const target = 0; // Ideal: no overspend
-      const successRate = dailySpendingLimit > 0 
+      const successRate = dailySpendingLimit > 0
         ? Math.max(0, 100 - (dailyOverspend / dailySpendingLimit) * 100)
         : 0;
-      
+
       return {
         metricName: 'Daily Discipline Score',
         metricValue: dailyOverspend,
         metricTarget: target,
         successRate: Math.round(successRate),
-        interpretation: successRate > 80 
-          ? 'Excellent! Staying within daily limits.' 
-          : successRate > 50 
-          ? 'Good progress. Minor overspending detected.'
-          : 'Focus on reducing daily overspend for better financial health.',
+        interpretation: successRate > 80
+          ? 'Excellent! Staying within daily limits.'
+          : successRate > 50
+            ? 'Good progress. Minor overspending detected.'
+            : 'Focus on reducing daily overspend for better financial health.',
       };
     }
 
@@ -122,38 +141,38 @@ export function calculateRoleSuccessMetrics(
       const savingsRate = income > 0 ? (actualSavings / income) * 100 : 0;
       const target = 20; // Target: 20% savings rate
       const successRate = Math.min(100, (savingsRate / target) * 100);
-      
+
       return {
         metricName: 'Savings Growth Rate',
         metricValue: Math.round(savingsRate),
         metricTarget: target,
         successRate: Math.round(successRate),
-        interpretation: savingsRate >= 20 
-          ? 'Outstanding! You\'re building wealth effectively.' 
-          : savingsRate >= 10 
-          ? 'On track. Consider increasing savings contributions.'
-          : 'Room for improvement. Review discretionary spending.',
+        interpretation: savingsRate >= 20
+          ? 'Outstanding! You\'re building wealth effectively.'
+          : savingsRate >= 10
+            ? 'On track. Consider increasing savings contributions.'
+            : 'Room for improvement. Review discretionary spending.',
       };
     }
 
     case 'Housewife': {
       // Success = Budget stability (lower variance is better)
-      const stabilityScore = monthlyVariance > 0 
+      const stabilityScore = monthlyVariance > 0
         ? Math.max(0, 100 - (monthlyVariance / income) * 100)
         : 100;
       const target = 90; // Target: 90% stability (low variance)
       const successRate = stabilityScore;
-      
+
       return {
         metricName: 'Budget Consistency Score',
         metricValue: Math.round(stabilityScore),
         metricTarget: target,
         successRate: Math.round(successRate),
-        interpretation: stabilityScore >= 90 
-          ? 'Excellent! Your household budget is very consistent.' 
-          : stabilityScore >= 70 
-          ? 'Good stability. Minor fluctuations detected.'
-          : 'Consider planning ahead to reduce monthly variance.',
+        interpretation: stabilityScore >= 90
+          ? 'Excellent! Your household budget is very consistent.'
+          : stabilityScore >= 70
+            ? 'Good stability. Minor fluctuations detected.'
+            : 'Consider planning ahead to reduce monthly variance.',
       };
     }
 
@@ -162,7 +181,7 @@ export function calculateRoleSuccessMetrics(
       const savingsRate = income > 0 ? (actualSavings / income) * 100 : 0;
       const target = 20;
       const successRate = Math.min(100, (savingsRate / target) * 100);
-      
+
       return {
         metricName: 'Financial Health Score',
         metricValue: Math.round(savingsRate),

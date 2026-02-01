@@ -17,7 +17,8 @@ const COLLECTIONS = {
   PROFILE: 'profile',
   GOALS: 'goals',
   TRANSACTIONS: 'transactions',
-  FIXED_EXPENSES: 'fixed-expenses'
+  FIXED_EXPENSES: 'fixed-expenses',
+  LOGGED_PAYMENTS: 'logged-payments'
 } as const;
 
 export class FirestoreService {
@@ -167,6 +168,28 @@ export class FirestoreService {
   }
 
   /**
+   * Logged Payments Methods
+   */
+  static async saveLoggedPayments(userId: string, payments: any): Promise<void> {
+    try {
+      await setDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.LOGGED_PAYMENTS, 'main'), { payments });
+    } catch (error) {
+      console.error('Error saving logged payments:', error);
+      throw error;
+    }
+  }
+
+  static async getLoggedPayments(userId: string): Promise<any | null> {
+    try {
+      const docSnap = await getDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.LOGGED_PAYMENTS, 'main'));
+      return docSnap.exists() ? docSnap.data().payments : null;
+    } catch (error) {
+      console.error('Error getting logged payments:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete all user data (used when deleting account)
    */
   static async deleteUserData(userId: string): Promise<void> {
@@ -176,21 +199,24 @@ export class FirestoreService {
 
       // Delete all goals
       const goals = await this.getGoals(userId);
-      await Promise.all(goals.map(goal => 
+      await Promise.all(goals.map(goal =>
         deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.GOALS, goal.id))
       ));
 
       // Delete all transactions
       const transactions = await this.getTransactions(userId);
-      await Promise.all(transactions.map(tx => 
+      await Promise.all(transactions.map(tx =>
         deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.TRANSACTIONS, tx.id))
       ));
 
       // Delete all fixed expenses
       const expenses = await this.getFixedExpenses(userId);
-      await Promise.all(expenses.map(expense => 
+      await Promise.all(expenses.map(expense =>
         deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.FIXED_EXPENSES, expense.id))
       ));
+
+      // Delete logged payments
+      await deleteDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.LOGGED_PAYMENTS, 'main'));
 
       // Finally, delete the user document itself
       await deleteDoc(doc(db, COLLECTIONS.USERS, userId));

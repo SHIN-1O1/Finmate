@@ -60,8 +60,8 @@ export default function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#071226] via-[#072b3e] to-[#073d58]">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/6 bg-black/20 backdrop-blur supports-[backdrop-filter]:bg-black/20">
-        <div className="container mx-auto flex h-16 items-center px-4">
+      <header className="sticky top-0 z-50 w-full border-b border-white/6 bg-black/20 backdrop-blur supports-[backdrop-filter]:bg-black/20 safe-pt">
+        <div className="container mx-auto flex h-16 md:h-20 items-center px-4">
           <Link href="/" className="mr-6 flex items-center space-x-3">
             <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
               <Image
