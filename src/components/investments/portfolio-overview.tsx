@@ -3,7 +3,7 @@
 import { Investment, SIPPlan } from '@/lib/investment-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trash2, TrendingUp } from 'lucide-react';
+import { Trash2, TrendingUp, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -140,7 +140,7 @@ export default function PortfolioOverview({ investments, sipPlans, onDeleteInves
                 <TableHeader className="bg-muted/50">
                   <TableRow>
                     <TableHead>Asset</TableHead>
-                    <TableHead>Allocation</TableHead>
+                    <TableHead>Details</TableHead>
                     <TableHead className="text-right">Value</TableHead>
                     <TableHead className="text-right">Return</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -149,17 +149,51 @@ export default function PortfolioOverview({ investments, sipPlans, onDeleteInves
                 <TableBody>
                   {investments.map(inv => {
                     const gain = inv.currentValue - inv.purchaseAmount;
-                    const returnPct = (gain / inv.purchaseAmount) * 100;
+                    const returnPct = inv.purchaseAmount > 0 ? (gain / inv.purchaseAmount) * 100 : 0;
+                    const isStock = inv.type === 'Stock';
+                    const lastUpdated = inv.lastPriceFetchedAt
+                      ? new Date(inv.lastPriceFetchedAt).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                      : null;
                     return (
                       <TableRow key={inv.id} className="hover:bg-muted/30">
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-bold text-sm">{inv.name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-sm">{inv.name}</span>
+                              {isStock && inv.symbol && (
+                                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono">
+                                  {inv.symbol}
+                                </span>
+                              )}
+                              {inv.quoteError && (
+                                <span title={inv.quoteError}>
+                                  <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-muted-foreground uppercase">{inv.type}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          ₹{inv.purchaseAmount.toLocaleString('en-IN')}
+                        <TableCell className="text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-muted-foreground">₹{inv.purchaseAmount.toLocaleString('en-IN')}</span>
+                            {isStock && inv.quantity && (
+                              <span className="text-muted-foreground">
+                                {inv.quantity} shares
+                                {inv.currentPrice && (
+                                  <span className="ml-1">@ ₹{inv.currentPrice.toLocaleString('en-IN')}</span>
+                                )}
+                              </span>
+                            )}
+                            {isStock && lastUpdated && (
+                              <span className="text-[10px] text-muted-foreground/70">Updated: {lastUpdated}</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           ₹{inv.currentValue.toLocaleString('en-IN')}

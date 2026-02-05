@@ -15,6 +15,9 @@ export interface Investment {
   status: InvestmentStatus;
   notes?: string;
   symbol?: string; // Stock ticker or fund code
+  lastPriceFetchedAt?: string; // ISO timestamp of last price fetch
+  priceSource?: string; // Quote provider (e.g., 'twelvedata')
+  quoteError?: string; // Last error message for this investment
 }
 
 export interface SIPPlan {

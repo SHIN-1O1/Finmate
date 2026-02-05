@@ -24,29 +24,54 @@ export default function InvestmentDialog({ open, onOpenChange, onSave }: Investm
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const investment: Investment = {
-      id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name,
-      type,
-      purchaseAmount,
-      currentValue: currentValue || purchaseAmount,
-      purchaseDate,
-      status: 'Active' as InvestmentStatus,
-      notes,
-    };
+  // Stock-specific fields
+  const [symbol, setSymbol] = useState('');
+  const [quantity, setQuantity] = useState<number>(0);
 
-    onSave(investment);
-    
-    // Reset form
+  const isStock = type === 'Stock';
+
+  const resetForm = () => {
     setName('');
     setType('Mutual Fund');
     setPurchaseAmount(0);
     setCurrentValue(0);
     setPurchaseDate(new Date().toISOString().split('T')[0]);
     setNotes('');
+    setSymbol('');
+    setQuantity(0);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate stock-specific fields
+    if (isStock) {
+      if (!symbol.trim()) {
+        return; // Symbol is required for stocks
+      }
+      if (quantity <= 0) {
+        return; // Quantity must be positive for stocks
+      }
+    }
+
+    const investment: Investment = {
+      id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      type,
+      purchaseAmount,
+      currentValue: currentValue || purchaseAmount, // Default to purchaseAmount until fetched
+      purchaseDate,
+      status: 'Active' as InvestmentStatus,
+      notes,
+      // Stock-specific fields
+      ...(isStock && {
+        symbol: symbol.toUpperCase().trim(),
+        quantity,
+      }),
+    };
+
+    onSave(investment);
+    resetForm();
   };
 
   return (
@@ -63,7 +88,7 @@ export default function InvestmentDialog({ open, onOpenChange, onSave }: Investm
             <Label htmlFor="name">Investment Name</Label>
             <Input
               id="name"
-              placeholder="e.g., HDFC Balanced Fund"
+              placeholder={isStock ? "e.g., Infosys Ltd" : "e.g., HDFC Balanced Fund"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -84,9 +109,42 @@ export default function InvestmentDialog({ open, onOpenChange, onSave }: Investm
             </Select>
           </div>
 
+          {/* Stock-specific fields */}
+          {isStock && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="symbol">Ticker Symbol *</Label>
+                <Input
+                  id="symbol"
+                  placeholder="e.g., INFY, TCS"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  required
+                  maxLength={10}
+                  className="uppercase"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  placeholder="e.g., 10"
+                  value={quantity || ''}
+                  onChange={(e) => setQuantity(Number(e.target.value))}
+                  required
+                  min={1}
+                  step={1}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="purchaseAmount">Purchase Amount (₹)</Label>
+              <Label htmlFor="purchaseAmount">
+                {isStock ? 'Total Investment (₹)' : 'Purchase Amount (₹)'}
+              </Label>
               <Input
                 id="purchaseAmount"
                 type="number"
@@ -96,17 +154,25 @@ export default function InvestmentDialog({ open, onOpenChange, onSave }: Investm
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="currentValue">Current Value (₹)</Label>
-              <Input
-                id="currentValue"
-                type="number"
-                placeholder="0"
-                value={currentValue || ''}
-                onChange={(e) => setCurrentValue(Number(e.target.value))}
-              />
-            </div>
+            {!isStock && (
+              <div className="space-y-2">
+                <Label htmlFor="currentValue">Current Value (₹)</Label>
+                <Input
+                  id="currentValue"
+                  type="number"
+                  placeholder="0"
+                  value={currentValue || ''}
+                  onChange={(e) => setCurrentValue(Number(e.target.value))}
+                />
+              </div>
+            )}
           </div>
+
+          {isStock && (
+            <p className="text-xs text-muted-foreground">
+              Current value will be automatically calculated when prices are refreshed.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="purchaseDate">Purchase Date</Label>

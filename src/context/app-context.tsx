@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import type { UserProfile, Goal, Transaction, FixedExpense, LoggedPayments, Contribution, EmergencyFundEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -66,6 +66,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [loggedPayments, setLoggedPayments] = useState<LoggedPayments>({});
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [authLoaded, setAuthLoaded] = useState(false);
+
+  // Badge check tracking refs to prevent loops
+  const isBadgeCheckInProgress = useRef(false);
+  const lastTransactionCount = useRef<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -675,77 +679,102 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Auto-check and award eligible badges
   const checkAndAwardBadges = useCallback(async () => {
+    // Prevent concurrent checks
+    if (isBadgeCheckInProgress.current) return;
     if (!profile || !user) return;
 
-    const earnedBadges = profile.gamification?.earnedBadges || [];
-    const streak = getCurrentStreak();
+    isBadgeCheckInProgress.current = true;
 
-    // Calculate total daily savings (cumulative)
-    const totalSaved = getCumulativeDailySavings();
+    try {
+      const earnedBadges = profile.gamification?.earnedBadges || [];
+      const streak = getCurrentStreak();
 
-    // Check for completed goals
-    const hasCompletedGoal = goals.some(g => g.currentAmount >= g.targetAmount);
+      // Calculate total daily savings (cumulative)
+      const totalSaved = getCumulativeDailySavings();
 
-    // Check for zero spend days
-    const today = startOfDay(new Date());
-    const todaysSpending = getTodaysSpending();
-    const hasZeroSpendDay = transactions.some(t => {
-      const txDate = startOfDay(parseISO(t.date));
-      const daySpending = transactions
-        .filter(tx => isSameDay(parseISO(tx.date), txDate))
-        .reduce((sum, tx) => sum + tx.amount, 0);
-      return daySpending === 0;
-    }) || todaysSpending === 0;
+      // Check for completed goals
+      const hasCompletedGoal = goals.some(g => g.currentAmount >= g.targetAmount);
 
-    // Count consecutive zero spend days
-    let consecutiveZeroSpendDays = 0;
-    let checkDate = subDays(today, 1);
-    for (let i = 0; i < 30; i++) {
-      const daySpending = transactions
-        .filter(t => isSameDay(parseISO(t.date), checkDate))
-        .reduce((sum, t) => sum + t.amount, 0);
-      if (daySpending === 0) {
-        consecutiveZeroSpendDays++;
-        checkDate = subDays(checkDate, 1);
-      } else {
-        break;
+      // Check for zero spend days
+      const today = startOfDay(new Date());
+      const todaysSpending = getTodaysSpending();
+      const hasZeroSpendDay = transactions.some(t => {
+        const txDate = startOfDay(parseISO(t.date));
+        const daySpending = transactions
+          .filter(tx => isSameDay(parseISO(tx.date), txDate))
+          .reduce((sum, tx) => sum + tx.amount, 0);
+        return daySpending === 0;
+      }) || todaysSpending === 0;
+
+      // Count consecutive zero spend days
+      let consecutiveZeroSpendDays = 0;
+      let checkDate = subDays(today, 1);
+      for (let i = 0; i < 30; i++) {
+        const daySpending = transactions
+          .filter(t => isSameDay(parseISO(t.date), checkDate))
+          .reduce((sum, t) => sum + t.amount, 0);
+        if (daySpending === 0) {
+          consecutiveZeroSpendDays++;
+          checkDate = subDays(checkDate, 1);
+        } else {
+          break;
+        }
       }
-    }
 
-    // Check weekend under budget (simplified)
-    const hasWeekendUnderBudget = streak >= 2;
+      // Check weekend under budget (simplified)
+      const hasWeekendUnderBudget = streak >= 2;
 
-    // Build context
-    const context: BadgeCheckContext = {
-      currentStreak: streak,
-      longestStreak: profile.gamification?.longestStreak || 0,
-      totalSaved,
-      monthlyIncome: profile.income,
-      monthlySavings: profile.monthlySavings,
-      emergencyFund: profile.emergencyFund?.current || 0,
-      monthlyExpenses: profile.monthlyNeeds + profile.monthlyWants,
-      hasCompletedGoal,
-      hasZeroSpendDay,
-      consecutiveZeroSpendDays,
-      hasWeekendUnderBudget,
-      earnedBadges,
-    };
+      // Build context
+      const context: BadgeCheckContext = {
+        currentStreak: streak,
+        longestStreak: profile.gamification?.longestStreak || 0,
+        totalSaved,
+        monthlyIncome: profile.income,
+        monthlySavings: profile.monthlySavings,
+        emergencyFund: profile.emergencyFund?.current || 0,
+        monthlyExpenses: profile.monthlyNeeds + profile.monthlyWants,
+        hasCompletedGoal,
+        hasZeroSpendDay,
+        consecutiveZeroSpendDays,
+        hasWeekendUnderBudget,
+        earnedBadges,
+      };
 
-    // Check eligibility
-    const newBadges = checkBadgeEligibility(context);
+      // Check eligibility
+      const newBadges = checkBadgeEligibility(context);
 
-    // Award new badges
-    for (const badgeId of newBadges) {
-      await awardBadge(badgeId);
+      // Award new badges
+      for (const badgeId of newBadges) {
+        await awardBadge(badgeId);
+      }
+    } finally {
+      isBadgeCheckInProgress.current = false;
     }
   }, [profile, user, transactions, goals, getCurrentStreak, getCumulativeDailySavings, getTodaysSpending]);
 
-  // Auto-check badges when transactions change
+  // Auto-check badges when a NEW transaction is added (NOT on initial data load)
+  // This prevents the flash/loop on page refresh
   useEffect(() => {
-    if (profile && transactions.length > 0) {
+    if (!profile || transactions.length === 0) {
+      // Track last known count (even if 0)
+      lastTransactionCount.current = transactions.length;
+      return;
+    }
+
+    // Skip if this is the initial data load (when lastTransactionCount was null)
+    if (lastTransactionCount.current === null) {
+      lastTransactionCount.current = transactions.length;
+      return;
+    }
+
+    // Only check badges if a NEW transaction was added
+    if (transactions.length > lastTransactionCount.current) {
       checkAndAwardBadges();
     }
-  }, [transactions.length, profile?.gamification?.earnedBadges?.length]);
+
+    lastTransactionCount.current = transactions.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions.length]);
 
   const value: AppContextType = {
     user,

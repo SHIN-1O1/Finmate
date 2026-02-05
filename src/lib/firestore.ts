@@ -21,14 +21,33 @@ const COLLECTIONS = {
   LOGGED_PAYMENTS: 'logged-payments'
 } as const;
 
+// Helper function to remove undefined values from objects (Firestore doesn't accept undefined)
+function removeUndefined<T extends object>(obj: T): T {
+  const result = {} as T;
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) continue;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      (result as any)[key] = removeUndefined(value);
+    } else if (Array.isArray(value)) {
+      (result as any)[key] = value.map(item =>
+        item !== null && typeof item === 'object' ? removeUndefined(item) : item
+      );
+    } else {
+      (result as any)[key] = value;
+    }
+  }
+  return result;
+}
+
 export class FirestoreService {
   /**
    * Profile Methods
    */
   static async saveProfile(userId: string, profile: UserProfile): Promise<void> {
     try {
-      // Store profile under users/{userId}/profile/main
-      await setDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main'), profile);
+      // Remove undefined values before saving
+      const cleanProfile = removeUndefined(profile);
+      await setDoc(doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main'), cleanProfile);
     } catch (error) {
       console.error('Error saving profile:', error);
       throw error;
@@ -51,8 +70,10 @@ export class FirestoreService {
 
   static async updateProfile(userId: string, updates: UserProfile): Promise<void> {
     try {
+      // Remove undefined values before saving
+      const cleanUpdates = removeUndefined(updates);
       const docRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.PROFILE, 'main');
-      await setDoc(docRef, updates);
+      await setDoc(docRef, cleanUpdates);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
