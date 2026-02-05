@@ -318,15 +318,6 @@ FinMate transforms personal finance from a tedious task into an **intelligent, e
 
 This section is a **business + market** evaluation of FinMate as if reviewed by a senior VC market analyst / product strategist. It is **not** a technical review.
 
-## Primary sources analyzed
-
-1) **Deployed product (explored as a user)**
-- URL: https://kart-i-quo-fujv.onrender.com/
-- Observed: landing, auth (signup/login), product positioning, feature framing.
-
-2) **Code context (limited use; intent/scope only)**
-- Folder: `fintech final edn`
-- Used only to validate feature completeness and roadmap credibility based on existing product surface area described in this README and route/page inventory.
 
 ## 1) Product & Value Proposition
 
