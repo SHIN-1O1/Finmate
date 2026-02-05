@@ -240,22 +240,29 @@ export default function LandingPage() {
             <p className="text-white/50 mb-16">Focused on building the future of Indian wealth tech.</p>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {[1, 2, 3, 4].map((i) => (
+              {[
+                { name: "GANESH KUMAR T", role: "FULLSTACK DEVELOPER" },
+                { name: "VINOTHINI T", role: "FRONTEND DEVELOPER" },
+                { name: "PAUL SHERVIN P", role: "UI/UX DEVELOPER" },
+                { name: "AMAN SINGH", role: "BACKEND DEVELOPER" },
+              ].map((member, i) => (
                 <div key={i} className="group flex flex-col items-center">
-                  <div className="relative w-40 h-40 mb-6 transition-transform group-hover:scale-105">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-[#4ADE80] to-cyan-400 rounded-3xl rotate-6 group-hover:rotate-12 transition-transform duration-300 opacity-20" />
-                    <div className="absolute inset-0 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 flex items-center justify-center p-4">
-                      <div className="w-full h-full rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 overflow-hidden flex items-center justify-center">
-                        {/* Replace broken images with stylish abstract initials */}
-                        <span className="text-3xl font-black text-white/30 tracking-tighter uppercase">
-                          {i === 1 ? "DEV" : i === 2 ? "PRD" : i === 3 ? "UX" : "AI"}
-                        </span>
+                  <div className="relative w-60 h-60 mb-8 transition-transform group-hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-[#4ADE80] to-cyan-400 rounded-[3rem] rotate-6 group-hover:rotate-12 transition-transform duration-300 opacity-20" />
+                    <div className="absolute inset-0 bg-white/5 backdrop-blur-md rounded-[3rem] border border-white/10 flex items-center justify-center p-8 shadow-2xl">
+                      <div className="w-full h-full rounded-[2rem] bg-[#0c1a2b] overflow-hidden relative border border-white/5">
+                        <Image
+                          src={`/team${i + 1}.jpg`}
+                          alt={member.name}
+                          fill
+                          className="object-contain p-2 transition-transform duration-500 group-hover:scale-110"
+                        />
                       </div>
                     </div>
                   </div>
-                  <h3 className="text-white font-bold text-lg mb-1">MEMBER {i}</h3>
-                  <p className="text-[#4ADE80] text-sm uppercase tracking-widest font-bold opacity-60">
-                    {i === 1 ? "Founder & Tech" : i === 2 ? "Product Strategy" : i === 3 ? "Design Lead" : "AI Architect"}
+                  <h3 className="text-white font-extrabold text-xl mb-1 tracking-tight">{member.name}</h3>
+                  <p className="text-[#4ADE80] text-[11px] uppercase tracking-[0.3em] font-black opacity-80 underline underline-offset-8 decoration-[#4ADE80]/30 mr-1">
+                    {member.role}
                   </p>
                 </div>
               ))}

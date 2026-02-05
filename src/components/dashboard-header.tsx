@@ -46,14 +46,18 @@ export function DashboardHeader() {
     <header className="sticky top-0 z-10 flex h-16 md:h-20 items-center gap-4 border-b bg-background px-4 md:px-6 safe-pt">
       <SidebarTrigger className="md:hidden" />
       <h1 className="flex-1 text-xl font-semibold tracking-tight">{title}</h1>
-      <div className="flex items-center gap-2 mr-3">
-        <ExportReport />
-        <PdfExport />
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 mr-2">
+          <ExportReport />
+          <PdfExport />
+        </div>
+        <div className="hidden sm:flex flex-col items-end mr-2">
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Welcome back,</span>
+          <span className="text-sm font-bold text-primary">
+            {profile?.name?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'User'}
+          </span>
+        </div>
       </div>
-      <Avatar>
-        <AvatarImage src={`https://avatar.vercel.sh/${avatarIdentifier}.png`} />
-        <AvatarFallback>{getInitials(avatarIdentifier)}</AvatarFallback>
-      </Avatar>
     </header>
   );
 }
