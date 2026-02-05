@@ -484,3 +484,15 @@ Consumer fintech + India distribution specialists; funds that understand habit p
 
 - This analysis intentionally avoids reviewing tech stack, frameworks, scalability, or architecture.
 - Public market sizing numbers were not pulled from external reports here (no web search key available in this environment). The TAM/SAM/SOM ranges are reasonable investor-style assumptions and should be replaced with cited figures if used in a real deck.
+
+## Research references (for investor citations)
+
+### Peer-reviewed / academic
+- Stefanov, T., et al. “Personal Finance Management Application.” *TEM Journal*, Vol. 13, Issue 3, pp. 2066–2075 (Aug 2024). DOI: 10.18421/TEM133-34. https://doi.org/10.18421/TEM133-34
+  - Useful investor quotes (adoption friction + free tier): see `docs/research/pfm-literature.md`.
+
+### Primary datasets / regulators (India)
+- RBI data releases/statistics: https://rbi.org.in/Scripts/Statistics.aspx
+- SEBI reports & statistics: https://www.sebi.gov.in/reports-and-statistics/statistics.html
+- NPCI UPI product statistics: https://www.npci.org.in/what-we-do/upi/product-statistics
+- World Bank Global Findex: https://www.worldbank.org/en/publication/globalfindex
